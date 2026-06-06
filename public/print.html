@@ -1,0 +1,38 @@
+<!-- public/print.html -->
+<!-- 14-T Print Receipt -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>14-T — Print Ticket</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="no-print">
+    <div>
+      <div class="logo">14-T</div>
+      <div class="tagline">Home Citation System</div>
+    </div>
+    <nav>
+      <a href="index.html">New Ticket</a>
+      <a href="dashboard.html">Dashboard</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="no-print" style="margin-bottom:16px; display:flex; gap:10px; align-items:center;">
+      <button onclick="window.print()">Print Receipt</button>
+      <button class="secondary" onclick="window.location.href='index.html'">New Ticket</button>
+      <button class="secondary" onclick="window.location.href='dashboard.html'">Dashboard</button>
+    </div>
+
+    <div id="print-view">
+      <div class="msg" style="display:block; background:var(--blue-light); color:var(--blue-dark); padding:14px;">Generating receipt...</div>
+    </div>
+  </main>
+
+  <footer class="no-print">14-T Home Citation System</footer>
+  <script src="app.js"></script>
+</body>
+</html>
