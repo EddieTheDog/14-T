@@ -1,0 +1,64 @@
+<!-- public/dashboard.html -->
+<!-- 14-T Dashboard -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>14-T — Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div>
+      <div class="logo">14-T</div>
+      <div class="tagline">Home Citation System</div>
+    </div>
+    <nav>
+      <a href="index.html">New Ticket</a>
+      <a href="dashboard.html">Dashboard</a>
+    </nav>
+  </header>
+
+  <main id="dashboard">
+    <h1>Dashboard</h1>
+
+    <div class="card">
+      <h2>Points Leaderboard</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Total Points</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboard">
+          <tr><td colspan="2" style="color:var(--muted)">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>All Citations</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Violation</th>
+            <th>Points</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="tickets-table">
+          <tr><td colspan="6" style="color:var(--muted)">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <footer>14-T Home Citation System</footer>
+  <script src="app.js"></script>
+</body>
+</html>
