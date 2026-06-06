@@ -213,6 +213,7 @@ button.success {
 .badge.open { background: #ddd; color: #333; }
 .badge.resolved { background: var(--success); color: var(--white); }
 .badge.flagged { background: var(--warn); color: #333; }
+.badge.locked { background: #555; color: var(--white); }
 
 .ticket-header {
   background: var(--blue);
