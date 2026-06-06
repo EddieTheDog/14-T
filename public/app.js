@@ -529,28 +529,44 @@ function renderFullTicket(container, t) {
 }
 
 async function submitAppeal(id) {
-  const note = document.getElementById('appeal-note').value.trim();
-  const confirmed = document.getElementById('appeal-confirm').checked;
+  const noteEl = document.getElementById('appeal-note');
+  const note = noteEl ? noteEl.value.trim() : '';
+  const confirmEl = document.getElementById('appeal-confirm');
   const msgEl = document.getElementById('appeal-msg');
 
   if (!note) { showMsg(msgEl, 'Please enter an explanation.', 'error'); return; }
-  if (!confirmed) { showMsg(msgEl, 'You must confirm this citation was issued to you.', 'error'); return; }
+  // Confirm checkbox only exists on the initial appeal form, not the reply form
+  if (confirmEl && !confirmEl.checked) {
+    showMsg(msgEl, 'You must confirm this citation was issued to you.', 'error');
+    return;
+  }
 
   let photoBase64 = null;
-  const photoFile = document.getElementById('appeal-photo').files[0];
+  const photoFile = document.getElementById('appeal-photo') ? document.getElementById('appeal-photo').files[0] : null;
   if (photoFile) {
     try { photoBase64 = await compressImage(photoFile); } catch { photoBase64 = null; }
   }
 
+  const submitBtn = document.querySelector(`[onclick="submitAppeal('${id}')"]`);
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
+
   const result = await API.appeal(id, note, photoBase64, true);
   if (result.success) {
-    showMsg(msgEl, 'Appeal submitted. It is under review.', 'ok');
-    document.getElementById('appeal-note').disabled = true;
-    document.getElementById('appeal-photo').disabled = true;
-    document.getElementById('appeal-confirm').disabled = true;
-    document.querySelector(`[onclick="submitAppeal('${id}')"]`).disabled = true;
+    showMsg(msgEl, 'Submitted successfully.', 'ok');
+    if (noteEl) noteEl.disabled = true;
+    const photoInput = document.getElementById('appeal-photo');
+    if (photoInput) photoInput.disabled = true;
+    if (confirmEl) confirmEl.disabled = true;
+    if (submitBtn) submitBtn.disabled = true;
+    // Refresh ticket view after short delay
+    setTimeout(() => {
+      API.getTicket(id).then(data => {
+        if (data && data.ticket) renderFullTicket(document.getElementById('ticket-view'), data.ticket);
+      });
+    }, 1200);
   } else {
-    showMsg(msgEl, 'Failed to submit appeal.', 'error');
+    showMsg(msgEl, result.error || 'Failed to submit.', 'error');
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Appeal'; }
   }
 }
 
@@ -581,20 +597,62 @@ if (document.getElementById('dashboard')) {
                 ? `${t.claimed_first}${t.claimed_last_initial ? ' ' + t.claimed_last_initial + '.' : ''} <em style="color:var(--muted);font-size:11px">(claimed)</em>`
                 : '<em style="color:var(--muted)">Unknown</em>')
             : t.person_name;
-          const hasAppeal = t.appeal_flagged && t.status !== 'resolved' && t.status !== 'locked';
-          const statusLabel = hasAppeal && !t.appeal_response ? 'APPEAL' : hasAppeal && t.appeal_response ? 'REPLY' : t.status;
-          const statusClass = hasAppeal && !t.appeal_response ? 'flagged' : hasAppeal ? 'flagged' : t.status;
+
+          // Appeal is "active" (needs attention) when flagged and not yet fully resolved/locked
+          const appealPending = t.appeal_flagged && t.status !== 'resolved';
+          // Needs response if appeal filed but no response yet
+          const needsResponse = appealPending && !t.appeal_response && !t.appeal_declined;
+          // Has a reply from them waiting (they replied to our response)
+          const hasReply = appealPending && t.appeal_response && !t.appeal_response_locked && !t.appeal_declined;
+
+          let statusLabel, statusClass;
+          if (t.status === 'resolved') { statusLabel = 'RESOLVED'; statusClass = 'resolved'; }
+          else if (t.status === 'locked') { statusLabel = 'LOCKED'; statusClass = 'locked'; }
+          else if (needsResponse) { statusLabel = 'APPEAL'; statusClass = 'flagged'; }
+          else if (hasReply) { statusLabel = 'REPLY'; statusClass = 'flagged'; }
+          else { statusLabel = t.status.toUpperCase(); statusClass = t.status; }
+
+          // Appeal thread snippet for inline view
+          let appealSnippet = '';
+          if (t.appeal_note) {
+            appealSnippet += `<tr style="background:#fff8e6;">
+              <td colspan="6" style="padding:10px 14px;border-bottom:1px solid var(--warn);">
+                <strong style="font-size:12px;color:#a07000;">APPEAL:</strong>
+                <span style="font-size:13px;margin-left:6px;">${t.appeal_note}</span>
+                ${t.appeal_photo_base64 ? `<br><img src="${t.appeal_photo_base64}" style="max-width:120px;margin-top:6px;border:1px solid var(--border);" alt="Appeal photo">` : ''}
+              </td>
+            </tr>`;
+          }
+          if (t.appeal_response) {
+            appealSnippet += `<tr style="background:#e8f5e8;">
+              <td colspan="6" style="padding:10px 14px;border-bottom:1px solid var(--success);">
+                <strong style="font-size:12px;color:var(--success);">YOUR RESPONSE:</strong>
+                <span style="font-size:13px;margin-left:6px;">${t.appeal_response}</span>
+                ${t.appeal_response_locked ? ' <span style="font-size:11px;color:var(--muted);">(thread locked)</span>' : ' <span style="font-size:11px;color:var(--muted);">(awaiting reply)</span>'}
+              </td>
+            </tr>`;
+          }
+          if (t.appeal_declined) {
+            appealSnippet += `<tr style="background:#fde8e8;">
+              <td colspan="6" style="padding:8px 14px;font-size:12px;color:var(--accent);font-weight:600;">
+                ✗ Appeal declined — points remain
+              </td>
+            </tr>`;
+          }
 
           let actions = '—';
-          if (t.status !== 'resolved' && t.status !== 'locked') {
+          if (t.status !== 'resolved') {
             actions = `<button class="success" style="padding:4px 10px;font-size:12px" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
-            if (hasAppeal) {
-              actions += ` <button class="secondary" style="padding:4px 10px;font-size:12px;margin-left:4px" onclick="resolveTicket('${t.id}', true)">Dismiss</button>`;
-              actions += ` <button class="secondary" style="padding:4px 10px;font-size:12px;margin-left:4px;border-color:var(--accent);color:var(--accent)" onclick="declineAppeal('${t.id}')">Decline</button>`;
-              actions += ` <button style="padding:4px 10px;font-size:12px;margin-left:4px;background:#555" onclick="openRespondModal('${t.id}')">Respond</button>`;
+            if (needsResponse || hasReply) {
+              // Can dismiss (remove points) or decline (keep points) or respond
+              actions += ` <button class="secondary" style="padding:4px 10px;font-size:12px;margin-top:2px" onclick="resolveTicket('${t.id}', true)">Dismiss</button>`;
+              actions += ` <button class="secondary" style="padding:4px 10px;font-size:12px;margin-top:2px;border-color:var(--accent);color:var(--accent)" onclick="declineAppeal('${t.id}')">Decline</button>`;
+              actions += ` <button style="padding:4px 10px;font-size:12px;margin-top:2px;background:#555" onclick="openRespondModal('${t.id}')">Respond</button>`;
             }
-          } else if (t.status === 'locked') {
-            actions = `<button class="success" style="padding:4px 10px;font-size:12px" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
+            // If we responded and left open, show a Lock button
+            if (t.appeal_response && !t.appeal_response_locked && t.status !== 'locked') {
+              actions += ` <button style="padding:4px 10px;font-size:12px;margin-top:2px;background:#333" onclick="lockThread('${t.id}')">Lock</button>`;
+            }
           }
 
           return `<tr>
@@ -603,8 +661,8 @@ if (document.getElementById('dashboard')) {
             <td><span class="badge ${t.violation_type}">${t.violation_type}</span></td>
             <td>${t.points} pt${t.points !== 1 ? 's' : ''}</td>
             <td><span class="badge ${statusClass}">${statusLabel}</span></td>
-            <td>${actions}</td>
-          </tr>`;
+            <td style="white-space:nowrap">${actions}</td>
+          </tr>${appealSnippet}`;
         }).join('');
   });
 }
@@ -620,6 +678,18 @@ async function declineAppeal(id) {
   const result = await API.declineAppeal(id);
   if (result.success) location.reload();
   else alert('Failed to decline appeal.');
+}
+
+async function lockThread(id) {
+  if (!confirm('Lock this appeal thread? They will no longer be able to reply.')) return;
+  const res = await fetch('/api/appeal-lock', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id })
+  });
+  const data = await res.json();
+  if (data.success) location.reload();
+  else alert('Failed to lock thread.');
 }
 
 function openRespondModal(id) {
