@@ -35,11 +35,11 @@
           <div class="row">
             <div class="field-group">
               <label for="person_first">First Name <span class="req">*</span></label>
-              <input type="text" id="person_first" name="person_first" required placeholder="First name">
+              <input type="text" id="person_first" name="person_first" autocomplete="given-name" required placeholder="First name">
             </div>
             <div class="field-group">
-              <label for="person_last">Last Name <span class="opt">(optional)</span></label>
-              <input type="text" id="person_last" name="person_last" placeholder="Last name">
+              <label for="person_last_initial">Last Initial <span class="opt">(optional)</span></label>
+              <input type="text" id="person_last_initial" name="person_last_initial" autocomplete="family-name" maxlength="1" placeholder="e.g. S" style="text-transform:uppercase; width:80px;">
             </div>
           </div>
         </div>
