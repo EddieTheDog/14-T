@@ -16,7 +16,7 @@ export async function onRequest(context) {
   }
 
   try {
-    const { id, note } = await request.json();
+    const { id, note, photo_base64 } = await request.json();
 
     if (!id || !note) {
       return new Response(JSON.stringify({ error: 'Missing id or note.' }), { status: 400, headers });
