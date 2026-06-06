@@ -46,6 +46,24 @@ const API = {
       body: JSON.stringify({ id, note, photo_base64: photoBase64 || null, confirmed })
     });
     return res.json();
+  },
+
+  async respondToAppeal(id, response, lock, photoBase64) {
+    const res = await fetch('/api/appeal-respond', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, response, lock, photo_base64: photoBase64 || null })
+    });
+    return res.json();
+  },
+
+  async declineAppeal(id) {
+    const res = await fetch('/api/appeal-decline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    return res.json();
   }
 };
 
@@ -191,6 +209,7 @@ if (document.getElementById('new-ticket-form')) {
         violation_type: violation,
         points: violationPoints(violation),
         location: document.getElementById('location').value.trim(),
+        description: document.getElementById('description').value.trim() || null,
         item_name: document.getElementById('item_name').value.trim() || null,
         product_number: document.getElementById('product_number').value.trim() || null,
         serial_number: document.getElementById('serial_number').value.trim() || null,
@@ -400,6 +419,73 @@ function renderFullTicket(container, t) {
     ? (t.claimed_last_initial ? `${t.claimed_first} ${t.claimed_last_initial}.` : t.claimed_first)
     : t.person_name;
   const dateStr = new Date(t.created_at).toLocaleString();
+  const isOwner = !window.location.search.includes('view=public');
+
+  // Appeal thread rendering
+  let appealThread = '';
+  if (t.appeal_note) {
+    appealThread += `
+      <div class="appeal-box" style="margin-top:16px;">
+        <strong>Appeal Filed:</strong><br>${t.appeal_note}
+        ${t.appeal_photo_base64 ? `<br><img src="${t.appeal_photo_base64}" style="width:100%;margin-top:10px;border:1px solid var(--border);" alt="Appeal photo">` : ''}
+      </div>`;
+  }
+  if (t.appeal_response) {
+    appealThread += `
+      <div style="background:#e8f5e8;border:1px solid var(--success);padding:14px;margin-top:10px;">
+        <strong>Response from issuer:</strong><br>${t.appeal_response}
+        ${t.appeal_response_photo ? `<br><img src="${t.appeal_response_photo}" style="width:100%;margin-top:10px;border:1px solid var(--border);" alt="Response photo">` : ''}
+      </div>`;
+  }
+  if (t.appeal_declined) {
+    appealThread += `<div class="msg error" style="display:block;margin-top:10px;">Appeal declined. Points remain.</div>`;
+  }
+
+  // What the ticket-holder sees for appeal actions
+  let appealSection = '';
+  if (t.status !== 'resolved' && t.status !== 'locked') {
+    if (!t.appeal_flagged) {
+      // No appeal yet — show form
+      appealSection = `
+        <hr class="divider">
+        <h2>File an Appeal</h2>
+        <div id="appeal-msg"></div>
+        <div class="field-group">
+          <label for="appeal-note">Explanation <span class="req">*</span></label>
+          <textarea id="appeal-note" placeholder="Explain your situation..."></textarea>
+        </div>
+        <div class="field-group">
+          <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
+          <input type="file" id="appeal-photo" accept="image/*" capture="environment">
+        </div>
+        <div class="field-group" style="display:flex; align-items:flex-start; gap:10px; margin-bottom:16px;">
+          <input type="checkbox" id="appeal-confirm" style="margin-top:3px; width:auto; flex-shrink:0;">
+          <label for="appeal-confirm" style="font-weight:400; font-size:13px; margin-bottom:0; cursor:pointer;">
+            I confirm that this citation was issued to me and that the information I am providing is accurate.
+          </label>
+        </div>
+        <button onclick="submitAppeal('${t.id}')">Submit Appeal</button>`;
+    } else if (t.appeal_flagged && t.appeal_response && !t.appeal_response_locked) {
+      // Issuer responded and left it open — allow rebuttal
+      appealSection = `
+        <hr class="divider">
+        <h2>Reply to Response</h2>
+        <div id="appeal-msg"></div>
+        <div class="field-group">
+          <label for="appeal-note">Your Reply <span class="req">*</span></label>
+          <textarea id="appeal-note" placeholder="Reply to the issuer's response..."></textarea>
+        </div>
+        <div class="field-group">
+          <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
+          <input type="file" id="appeal-photo" accept="image/*" capture="environment">
+        </div>
+        <button onclick="submitAppeal('${t.id}')">Send Reply</button>`;
+    } else if (t.appeal_flagged && !t.appeal_response) {
+      appealSection = `<div class="appeal-box" style="margin-top:16px;">Your appeal has been submitted and is under review.</div>`;
+    } else if (t.appeal_response_locked) {
+      appealSection = `<div class="msg" style="display:block;margin-top:16px;background:var(--blue-light);color:var(--blue-dark);padding:14px;">This appeal has been closed by the issuer. No further replies.</div>`;
+    }
+  }
 
   container.innerHTML = `
     <div class="ticket-header">
@@ -427,36 +513,17 @@ function renderFullTicket(container, t) {
         </div>
       </div>
 
-      ${t.appeal_note ? `
-        <div class="appeal-box">
-          <strong>Appeal Filed:</strong><br>${t.appeal_note}
-          ${t.appeal_photo_base64 ? `<br><img src="${t.appeal_photo_base64}" style="width:100%;margin-top:10px;border:1px solid var(--border);" alt="Appeal photo">` : ''}
-        </div>
-      ` : ''}
+      ${t.description ? `
+        <div style="background:var(--blue-light);border-left:4px solid var(--blue);padding:12px 14px;margin-bottom:16px;">
+          <strong style="font-size:13px;color:var(--blue-dark);text-transform:uppercase;letter-spacing:0.5px;">Violation Details</strong>
+          <div style="margin-top:6px;font-size:14px;white-space:pre-wrap;">${t.description}</div>
+        </div>` : ''}
 
-      ${t.status !== 'resolved' && !t.appeal_flagged ? `
-        <hr class="divider">
-        <h2>File an Appeal</h2>
-        <div id="appeal-msg"></div>
-        <div class="field-group">
-          <label for="appeal-note">Explanation <span class="req">*</span></label>
-          <textarea id="appeal-note" placeholder="Explain your situation..."></textarea>
-        </div>
-        <div class="field-group">
-          <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
-          <input type="file" id="appeal-photo" accept="image/*" capture="environment">
-        </div>
-        <div class="field-group" style="display:flex; align-items:flex-start; gap:10px; margin-bottom:16px;">
-          <input type="checkbox" id="appeal-confirm" style="margin-top:3px; width:auto; flex-shrink:0;">
-          <label for="appeal-confirm" style="font-weight:400; font-size:13px; margin-bottom:0; cursor:pointer;">
-            I confirm that this citation was issued to me and that the information I am providing is accurate.
-          </label>
-        </div>
-        <button onclick="submitAppeal('${t.id}')">Submit Appeal</button>
-      ` : ''}
+      ${appealThread}
+      ${appealSection}
 
       ${t.status === 'resolved' ? '<div class="msg ok" style="display:block;margin-top:16px">This ticket has been resolved.</div>' : ''}
-      ${t.appeal_flagged && t.status !== 'resolved' ? '<div class="appeal-box" style="margin-top:16px">Your appeal has been submitted and is under review.</div>' : ''}
+      ${t.status === 'locked' ? '<div class="msg" style="display:block;margin-top:16px;background:var(--blue-light);color:var(--blue-dark);padding:14px;">This ticket has been locked.</div>' : ''}
     </div>
   `;
 }
@@ -514,17 +581,29 @@ if (document.getElementById('dashboard')) {
                 ? `${t.claimed_first}${t.claimed_last_initial ? ' ' + t.claimed_last_initial + '.' : ''} <em style="color:var(--muted);font-size:11px">(claimed)</em>`
                 : '<em style="color:var(--muted)">Unknown</em>')
             : t.person_name;
-          const statusLabel = t.appeal_flagged && t.status !== 'resolved' ? 'APPEAL' : t.status;
-          const statusClass = t.appeal_flagged && t.status !== 'resolved' ? 'flagged' : t.status;
+          const hasAppeal = t.appeal_flagged && t.status !== 'resolved' && t.status !== 'locked';
+          const statusLabel = hasAppeal && !t.appeal_response ? 'APPEAL' : hasAppeal && t.appeal_response ? 'REPLY' : t.status;
+          const statusClass = hasAppeal && !t.appeal_response ? 'flagged' : hasAppeal ? 'flagged' : t.status;
+
+          let actions = '—';
+          if (t.status !== 'resolved' && t.status !== 'locked') {
+            actions = `<button class="success" style="padding:4px 10px;font-size:12px" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
+            if (hasAppeal) {
+              actions += ` <button class="secondary" style="padding:4px 10px;font-size:12px;margin-left:4px" onclick="resolveTicket('${t.id}', true)">Dismiss</button>`;
+              actions += ` <button class="secondary" style="padding:4px 10px;font-size:12px;margin-left:4px;border-color:var(--accent);color:var(--accent)" onclick="declineAppeal('${t.id}')">Decline</button>`;
+              actions += ` <button style="padding:4px 10px;font-size:12px;margin-left:4px;background:#555" onclick="openRespondModal('${t.id}')">Respond</button>`;
+            }
+          } else if (t.status === 'locked') {
+            actions = `<button class="success" style="padding:4px 10px;font-size:12px" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
+          }
+
           return `<tr>
             <td><a href="ticket.html?id=${t.id}">${t.id}</a></td>
             <td>${displayName}</td>
             <td><span class="badge ${t.violation_type}">${t.violation_type}</span></td>
             <td>${t.points} pt${t.points !== 1 ? 's' : ''}</td>
             <td><span class="badge ${statusClass}">${statusLabel}</span></td>
-            <td>${t.status !== 'resolved'
-              ? `<button class="success" style="padding:4px 10px;font-size:12px" onclick="resolveTicket('${t.id}', false)">Resolve</button>${t.appeal_flagged ? ` <button class="secondary" style="padding:4px 10px;font-size:12px;margin-left:4px" onclick="resolveTicket('${t.id}', true)">Dismiss</button>` : ''}`
-              : '—'}</td>
+            <td>${actions}</td>
           </tr>`;
         }).join('');
   });
@@ -534,6 +613,76 @@ async function resolveTicket(id, dismiss) {
   const result = await API.resolve(id, dismiss);
   if (result.success) location.reload();
   else alert('Failed to update ticket.');
+}
+
+async function declineAppeal(id) {
+  if (!confirm('Decline this appeal? Points will remain.')) return;
+  const result = await API.declineAppeal(id);
+  if (result.success) location.reload();
+  else alert('Failed to decline appeal.');
+}
+
+function openRespondModal(id) {
+  // Remove any existing modal
+  const existing = document.getElementById('respond-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'respond-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;';
+  modal.innerHTML = `
+    <div style="background:var(--white);max-width:520px;width:100%;padding:24px;border-top:4px solid var(--blue);">
+      <h2 style="margin-bottom:16px;">Respond to Appeal</h2>
+      <div id="respond-msg"></div>
+      <div class="field-group">
+        <label for="respond-text">Your Response <span class="req">*</span></label>
+        <textarea id="respond-text" placeholder="Write your response to the appeal..." style="min-height:100px;"></textarea>
+      </div>
+      <div class="field-group">
+        <label for="respond-photo">Attach Photo <span class="opt">(optional)</span></label>
+        <input type="file" id="respond-photo" accept="image/*" capture="environment">
+      </div>
+      <div style="margin-top:8px;margin-bottom:20px;background:var(--blue-light);padding:12px;border-left:3px solid var(--blue);">
+        <strong style="font-size:13px;">After sending, do you want to:</strong>
+        <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+          <button id="send-lock-btn" style="background:#555;" onclick="submitResponse('${id}', true)">Send &amp; Lock Thread</button>
+          <button id="send-open-btn" class="secondary" onclick="submitResponse('${id}', false)">Send &amp; Allow Reply</button>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px;">Lock closes the appeal thread. Allow Reply lets them send one more message back.</div>
+      </div>
+      <button class="secondary" onclick="document.getElementById('respond-modal').remove()">Cancel</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+async function submitResponse(id, lock) {
+  const text = document.getElementById('respond-text').value.trim();
+  const msgEl = document.getElementById('respond-msg');
+  if (!text) {
+    msgEl.className = 'msg error';
+    msgEl.textContent = 'Response text is required.';
+    msgEl.style.display = 'block';
+    return;
+  }
+  let photoBase64 = null;
+  const photoFile = document.getElementById('respond-photo').files[0];
+  if (photoFile) {
+    try { photoBase64 = await compressImage(photoFile); } catch { photoBase64 = null; }
+  }
+  document.getElementById('send-lock-btn').disabled = true;
+  document.getElementById('send-open-btn').disabled = true;
+  const result = await API.respondToAppeal(id, text, lock, photoBase64);
+  if (result.success) {
+    document.getElementById('respond-modal').remove();
+    location.reload();
+  } else {
+    msgEl.className = 'msg error';
+    msgEl.textContent = result.error || 'Failed to send response.';
+    msgEl.style.display = 'block';
+    document.getElementById('send-lock-btn').disabled = false;
+    document.getElementById('send-open-btn').disabled = false;
+  }
 }
 
 // ── PRINT VIEW ───────────────────────────────────────────────────────────────
@@ -556,20 +705,17 @@ if (document.getElementById('print-view')) {
 
     document.getElementById('print-view').innerHTML = `
       <div style="width:80mm; margin:0 auto; font-size:11px; font-family:monospace;">
-        <div style="text-align:center; font-size:16px; font-weight:bold; letter-spacing:3px; border-bottom:1px solid #000; padding-bottom:6px; margin-bottom:6px;">
+        <div style="text-align:center; font-size:16px; font-weight:bold; letter-spacing:3px; border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:10px;">
           14-T CITATION
         </div>
-        <div><strong>ID:</strong> ${t.id}</div>
-        <div><strong>NAME:</strong> ${t.person_name}</div>
-        <div><strong>VIOLATION:</strong> ${t.violation_type.toUpperCase()}</div>
-        <div><strong>POINTS:</strong> ${t.points}</div>
-        <div><strong>LOCATION:</strong> ${t.location}</div>
-        ${t.item_name ? `<div><strong>ITEM:</strong> ${t.item_name}</div>` : ''}
-        <div><strong>DATE:</strong> ${dateStr}</div>
-        <div style="border-top:1px solid #000; margin-top:8px; padding-top:8px; text-align:center;">
-          <div id="qr-code"></div>
-          <div style="font-size:9px; margin-top:4px; word-break:break-all;">${url}</div>
-          <div style="margin-top:6px; font-size:10px;">Scan to view &amp; appeal</div>
+        <div style="margin-bottom:4px;"><strong>NAME:</strong> ${t.person_name}</div>
+        <div style="margin-bottom:4px;"><strong>LOCATION:</strong> ${t.location}</div>
+        ${t.item_name ? `<div style="margin-bottom:4px;"><strong>ITEM:</strong> ${t.item_name}</div>` : ''}
+        <div style="margin-bottom:4px;"><strong>DATE:</strong> ${dateStr}</div>
+        <div style="border-top:1px solid #000; margin-top:10px; padding-top:10px; text-align:center;">
+          <div id="qr-code" style="display:inline-block;"></div>
+          <div style="font-size:9px; margin-top:6px; word-break:break-all;">${url}</div>
+          <div style="margin-top:6px; font-size:10px; font-style:italic;">Scan to view your citation</div>
         </div>
       </div>
     `;
