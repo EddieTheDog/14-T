@@ -15,15 +15,15 @@ export async function onRequest(context) {
       const body = await request.json();
       const {
         id, person_first, person_last_initial, person_name,
-        is_unknown, violation_type, points, location,
+        is_unknown, violation_type, points, location, description,
         item_name, product_number, serial_number, photo_base64, created_at
       } = body;
       if (!id || !person_name || !violation_type || !location || !photo_base64) {
         return new Response(JSON.stringify({ error: 'Missing required fields.' }), { status: 400, headers });
       }
       await env.DB.prepare(
-        `INSERT INTO tickets (id, person_first, person_last_initial, person_name, is_unknown, violation_type, points, location, item_name, product_number, serial_number, photo_base64, status, appeal_flagged, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', 0, ?)`
+        `INSERT INTO tickets (id, person_first, person_last_initial, person_name, is_unknown, violation_type, points, location, description, item_name, product_number, serial_number, photo_base64, status, appeal_flagged, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', 0, ?)`
       ).bind(
         id,
         person_first || null,
@@ -33,6 +33,7 @@ export async function onRequest(context) {
         violation_type,
         points,
         location,
+        description || null,
         item_name || null,
         product_number || null,
         serial_number || null,
