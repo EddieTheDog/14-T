@@ -343,7 +343,7 @@ function renderNamedGate(container, t) {
         </div>
       </div>
       <div style="display:flex; gap:10px;">
-        <button onclick="verifyNamed('${t.id}', '${t.person_first}', ${t.person_last ? `'${t.person_last}'` : 'null'})">View My Ticket</button>
+        <button onclick="verifyNamed('${t.id}', '${t.person_name}')">View My Ticket</button>
         <button class="secondary" onclick="showPartialNamed()">This is not mine</button>
       </div>
       <div id="partial-named" style="display:none; margin-top:20px;">
@@ -366,12 +366,11 @@ function verifyClaim(id, claimedFirst, claimedLast) {
   }
 }
 
-function verifyNamed(id, personFirst, personLast) {
+function verifyNamed(id, personName) {
   const enteredFirst = document.getElementById('verify-first').value.trim().toLowerCase();
   const enteredLast = document.getElementById('verify-last').value.trim().toLowerCase();
-  const firstMatch = enteredFirst === personFirst.toLowerCase();
-  const lastMatch = !personLast || enteredLast === personLast.toLowerCase();
-  if (firstMatch && lastMatch) {
+  const entered = (enteredFirst + (enteredLast ? ' ' + enteredLast : '')).toLowerCase();
+  if (entered === personName.toLowerCase()) {
     API.getTicket(id).then(data => renderFullTicket(document.getElementById('ticket-view'), data.ticket));
   } else {
     showPartialNamed();
