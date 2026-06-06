@@ -598,62 +598,23 @@ if (document.getElementById('dashboard')) {
                 : '<em style="color:var(--muted)">Unknown</em>')
             : t.person_name;
 
-          // Appeal is "active" (needs attention) when flagged and not yet fully resolved/locked
-          const appealPending = t.appeal_flagged && t.status !== 'resolved';
-          // Needs response if appeal filed but no response yet
-          const needsResponse = appealPending && !t.appeal_response && !t.appeal_declined;
-          // Has a reply from them waiting (they replied to our response)
-          const hasReply = appealPending && t.appeal_response && !t.appeal_response_locked && !t.appeal_declined;
+          const needsResponse = t.appeal_flagged && !t.appeal_response && !t.appeal_declined && t.status !== 'resolved';
+          const hasReply = t.appeal_flagged && t.appeal_response && !t.appeal_response_locked && t.status !== 'resolved';
 
           let statusLabel, statusClass;
           if (t.status === 'resolved') { statusLabel = 'RESOLVED'; statusClass = 'resolved'; }
+          else if (t.appeal_declined) { statusLabel = 'DECLINED'; statusClass = 'severe'; }
           else if (t.status === 'locked') { statusLabel = 'LOCKED'; statusClass = 'locked'; }
           else if (needsResponse) { statusLabel = 'APPEAL'; statusClass = 'flagged'; }
           else if (hasReply) { statusLabel = 'REPLY'; statusClass = 'flagged'; }
           else { statusLabel = t.status.toUpperCase(); statusClass = t.status; }
 
-          // Appeal thread snippet for inline view
-          let appealSnippet = '';
-          if (t.appeal_note) {
-            appealSnippet += `<tr style="background:#fff8e6;">
-              <td colspan="6" style="padding:10px 14px;border-bottom:1px solid var(--warn);">
-                <strong style="font-size:12px;color:#a07000;">APPEAL:</strong>
-                <span style="font-size:13px;margin-left:6px;">${t.appeal_note}</span>
-                ${t.appeal_photo_base64 ? `<br><img src="${t.appeal_photo_base64}" style="max-width:120px;margin-top:6px;border:1px solid var(--border);" alt="Appeal photo">` : ''}
-              </td>
-            </tr>`;
-          }
-          if (t.appeal_response) {
-            appealSnippet += `<tr style="background:#e8f5e8;">
-              <td colspan="6" style="padding:10px 14px;border-bottom:1px solid var(--success);">
-                <strong style="font-size:12px;color:var(--success);">YOUR RESPONSE:</strong>
-                <span style="font-size:13px;margin-left:6px;">${t.appeal_response}</span>
-                ${t.appeal_response_locked ? ' <span style="font-size:11px;color:var(--muted);">(thread locked)</span>' : ' <span style="font-size:11px;color:var(--muted);">(awaiting reply)</span>'}
-              </td>
-            </tr>`;
-          }
-          if (t.appeal_declined) {
-            appealSnippet += `<tr style="background:#fde8e8;">
-              <td colspan="6" style="padding:8px 14px;font-size:12px;color:var(--accent);font-weight:600;">
-                ✗ Appeal declined — points remain
-              </td>
-            </tr>`;
-          }
-
-          let actions = '—';
-          if (t.status !== 'resolved') {
-            actions = `<button class="success" style="padding:4px 10px;font-size:12px" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
-            if (needsResponse || hasReply) {
-              // Can dismiss (remove points) or decline (keep points) or respond
-              actions += ` <button class="secondary" style="padding:4px 10px;font-size:12px;margin-top:2px" onclick="resolveTicket('${t.id}', true)">Dismiss</button>`;
-              actions += ` <button class="secondary" style="padding:4px 10px;font-size:12px;margin-top:2px;border-color:var(--accent);color:var(--accent)" onclick="declineAppeal('${t.id}')">Decline</button>`;
-              actions += ` <button style="padding:4px 10px;font-size:12px;margin-top:2px;background:#555" onclick="openRespondModal('${t.id}')">Respond</button>`;
-            }
-            // If we responded and left open, show a Lock button
-            if (t.appeal_response && !t.appeal_response_locked && t.status !== 'locked') {
-              actions += ` <button style="padding:4px 10px;font-size:12px;margin-top:2px;background:#333" onclick="lockThread('${t.id}')">Lock</button>`;
-            }
-          }
+          const hasAnyAppeal = t.appeal_flagged;
+          const actionBtn = t.status === 'resolved'
+            ? '—'
+            : hasAnyAppeal
+              ? `<button style="padding:4px 12px;font-size:12px;background:var(--blue)" onclick="openAppealModal(${JSON.stringify(JSON.stringify(t))})">View Appeal</button>`
+              : `<button class="success" style="padding:4px 10px;font-size:12px" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
 
           return `<tr>
             <td><a href="ticket.html?id=${t.id}">${t.id}</a></td>
@@ -661,8 +622,8 @@ if (document.getElementById('dashboard')) {
             <td><span class="badge ${t.violation_type}">${t.violation_type}</span></td>
             <td>${t.points} pt${t.points !== 1 ? 's' : ''}</td>
             <td><span class="badge ${statusClass}">${statusLabel}</span></td>
-            <td style="white-space:nowrap">${actions}</td>
-          </tr>${appealSnippet}`;
+            <td>${actionBtn}</td>
+          </tr>`;
         }).join('');
   });
 }
@@ -681,7 +642,6 @@ async function declineAppeal(id) {
 }
 
 async function lockThread(id) {
-  if (!confirm('Lock this appeal thread? They will no longer be able to reply.')) return;
   const res = await fetch('/api/appeal-lock', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -692,66 +652,112 @@ async function lockThread(id) {
   else alert('Failed to lock thread.');
 }
 
-function openRespondModal(id) {
-  // Remove any existing modal
-  const existing = document.getElementById('respond-modal');
+function openAppealModal(tJson) {
+  const t = JSON.parse(tJson);
+  const existing = document.getElementById('appeal-modal');
   if (existing) existing.remove();
 
-  const modal = document.createElement('div');
-  modal.id = 'respond-modal';
-  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;';
-  modal.innerHTML = `
-    <div style="background:var(--white);max-width:520px;width:100%;padding:24px;border-top:4px solid var(--blue);">
-      <h2 style="margin-bottom:16px;">Respond to Appeal</h2>
+  const needsResponse = t.appeal_flagged && !t.appeal_response && !t.appeal_declined && t.status !== 'resolved';
+  const canRespond = t.appeal_flagged && !t.appeal_declined && t.status !== 'resolved';
+  const canLock = t.appeal_response && !t.appeal_response_locked && t.status !== 'locked' && t.status !== 'resolved';
+  const canDecline = !t.appeal_declined && t.status !== 'resolved';
+
+  // Build thread HTML
+  let thread = '';
+  if (t.appeal_note) {
+    thread += `<div style="background:#fff8e6;border:1px solid var(--warn);padding:12px;margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:#a07000;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Their Appeal</div>
+      <div style="font-size:14px;">${t.appeal_note}</div>
+      ${t.appeal_photo_base64 ? `<img src="${t.appeal_photo_base64}" style="width:100%;max-height:200px;object-fit:cover;margin-top:8px;border:1px solid var(--border);">` : ''}
+    </div>`;
+  }
+  if (t.appeal_response) {
+    thread += `<div style="background:#e8f5e8;border:1px solid var(--success);padding:12px;margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Your Response ${t.appeal_response_locked ? '· <span style="color:var(--muted)">Thread Locked</span>' : '· <span style="color:var(--muted)">Awaiting Reply</span>'}</div>
+      <div style="font-size:14px;">${t.appeal_response}</div>
+      ${t.appeal_response_photo ? `<img src="${t.appeal_response_photo}" style="width:100%;max-height:200px;object-fit:cover;margin-top:8px;border:1px solid var(--border);">` : ''}
+    </div>`;
+  }
+  if (t.appeal_declined) {
+    thread += `<div style="background:#fde8e8;border:1px solid var(--accent);padding:10px;margin-bottom:10px;font-size:13px;font-weight:700;color:var(--accent);">✗ Appeal Declined — Points Remain</div>`;
+  }
+
+  // Respond form (shown if canRespond)
+  const respondForm = canRespond ? `
+    <div id="respond-section" style="border-top:2px solid var(--border);margin-top:16px;padding-top:16px;">
+      <div style="font-size:13px;font-weight:700;color:var(--blue-dark);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Send a Response</div>
       <div id="respond-msg"></div>
       <div class="field-group">
-        <label for="respond-text">Your Response <span class="req">*</span></label>
-        <textarea id="respond-text" placeholder="Write your response to the appeal..." style="min-height:100px;"></textarea>
+        <label for="modal-respond-text">Message <span class="req">*</span></label>
+        <textarea id="modal-respond-text" placeholder="Write your response..." style="min-height:80px;"></textarea>
       </div>
       <div class="field-group">
-        <label for="respond-photo">Attach Photo <span class="opt">(optional)</span></label>
-        <input type="file" id="respond-photo" accept="image/*" capture="environment">
+        <label for="modal-respond-photo">Attach Photo <span class="opt">(optional)</span></label>
+        <input type="file" id="modal-respond-photo" accept="image/*" capture="environment">
       </div>
-      <div style="margin-top:8px;margin-bottom:20px;background:var(--blue-light);padding:12px;border-left:3px solid var(--blue);">
-        <strong style="font-size:13px;">After sending, do you want to:</strong>
-        <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
-          <button id="send-lock-btn" style="background:#555;" onclick="submitResponse('${id}', true)">Send &amp; Lock Thread</button>
-          <button id="send-open-btn" class="secondary" onclick="submitResponse('${id}', false)">Send &amp; Allow Reply</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+        <button style="background:#555;padding:8px 14px;font-size:13px;" onclick="submitModalResponse('${t.id}', true)">Send &amp; Lock Thread</button>
+        <button class="secondary" style="padding:8px 14px;font-size:13px;" onclick="submitModalResponse('${t.id}', false)">Send &amp; Allow Reply</button>
+      </div>
+    </div>` : '';
+
+  // Action buttons at bottom
+  let actionBtns = '';
+  if (t.status !== 'resolved') {
+    actionBtns += `<button class="success" style="padding:8px 16px;font-size:13px;" onclick="resolveTicket('${t.id}', false); document.getElementById('appeal-modal').remove();">Resolve</button>`;
+    actionBtns += ` <button class="secondary" style="padding:8px 16px;font-size:13px;" onclick="resolveTicket('${t.id}', true); document.getElementById('appeal-modal').remove();">Dismiss (Remove Points)</button>`;
+    if (canDecline) {
+      actionBtns += ` <button class="danger" style="padding:8px 16px;font-size:13px;" onclick="declineAppeal('${t.id}')">Decline Appeal</button>`;
+    }
+    if (canLock) {
+      actionBtns += ` <button style="background:#333;padding:8px 16px;font-size:13px;" onclick="lockThread('${t.id}')">Lock Thread</button>`;
+    }
+  }
+
+  const modal = document.createElement('div');
+  modal.id = 'appeal-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;';
+  modal.innerHTML = `
+    <div style="background:var(--white);max-width:560px;width:100%;border-top:4px solid var(--blue);margin:auto;">
+      <div style="background:var(--blue);color:var(--white);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:11px;opacity:0.75;letter-spacing:1px;">${t.id}</div>
+          <div style="font-size:17px;font-weight:700;">${t.person_name} — Appeal</div>
         </div>
-        <div style="font-size:12px;color:var(--muted);margin-top:8px;">Lock closes the appeal thread. Allow Reply lets them send one more message back.</div>
+        <button onclick="document.getElementById('appeal-modal').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:var(--white);padding:4px 10px;font-size:13px;">✕ Close</button>
       </div>
-      <button class="secondary" onclick="document.getElementById('respond-modal').remove()">Cancel</button>
+      <div style="padding:18px;">
+        ${thread}
+        ${respondForm}
+        ${actionBtns ? `<div style="border-top:2px solid var(--border);margin-top:18px;padding-top:16px;display:flex;gap:8px;flex-wrap:wrap;">${actionBtns}</div>` : ''}
+      </div>
     </div>
   `;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
   document.body.appendChild(modal);
 }
 
-async function submitResponse(id, lock) {
-  const text = document.getElementById('respond-text').value.trim();
+async function submitModalResponse(id, lock) {
+  const text = document.getElementById('modal-respond-text').value.trim();
   const msgEl = document.getElementById('respond-msg');
   if (!text) {
-    msgEl.className = 'msg error';
-    msgEl.textContent = 'Response text is required.';
-    msgEl.style.display = 'block';
+    msgEl.className = 'msg error'; msgEl.textContent = 'Response text is required.'; msgEl.style.display = 'block';
     return;
   }
   let photoBase64 = null;
-  const photoFile = document.getElementById('respond-photo').files[0];
-  if (photoFile) {
-    try { photoBase64 = await compressImage(photoFile); } catch { photoBase64 = null; }
-  }
-  document.getElementById('send-lock-btn').disabled = true;
-  document.getElementById('send-open-btn').disabled = true;
+  const photoFile = document.getElementById('modal-respond-photo').files[0];
+  if (photoFile) { try { photoBase64 = await compressImage(photoFile); } catch { photoBase64 = null; } }
+
+  const btns = document.querySelectorAll('#appeal-modal button');
+  btns.forEach(b => b.disabled = true);
+
   const result = await API.respondToAppeal(id, text, lock, photoBase64);
   if (result.success) {
-    document.getElementById('respond-modal').remove();
+    document.getElementById('appeal-modal').remove();
     location.reload();
   } else {
-    msgEl.className = 'msg error';
-    msgEl.textContent = result.error || 'Failed to send response.';
-    msgEl.style.display = 'block';
-    document.getElementById('send-lock-btn').disabled = false;
-    document.getElementById('send-open-btn').disabled = false;
+    msgEl.className = 'msg error'; msgEl.textContent = result.error || 'Failed to send.'; msgEl.style.display = 'block';
+    btns.forEach(b => b.disabled = false);
   }
 }
 
