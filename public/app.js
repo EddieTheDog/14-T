@@ -571,6 +571,8 @@ async function submitAppeal(id) {
 }
 
 // ── DASHBOARD ────────────────────────────────────────────────────────────────
+const _ticketCache = {};
+
 if (document.getElementById('dashboard')) {
   API.getAllTickets().then(data => {
     if (!data || data.error) return;
@@ -588,6 +590,9 @@ if (document.getElementById('dashboard')) {
     const flagged = tickets.filter(t => t.appeal_flagged && t.status !== 'resolved');
     const rest = tickets.filter(t => !t.appeal_flagged || t.status === 'resolved');
     const sorted = [...flagged, ...rest];
+
+    // Store all tickets in cache so openAppealModal can look them up by ID
+    tickets.forEach(t => { _ticketCache[t.id] = t; });
 
     ticketsEl.innerHTML = sorted.length === 0
       ? '<tr><td colspan="6" style="color:var(--muted)">No tickets issued yet.</td></tr>'
@@ -613,7 +618,7 @@ if (document.getElementById('dashboard')) {
           const actionBtn = t.status === 'resolved'
             ? '—'
             : hasAnyAppeal
-              ? `<button style="padding:4px 12px;font-size:12px;background:var(--blue)" onclick="openAppealModal(${JSON.stringify(JSON.stringify(t))})">View Appeal</button>`
+              ? `<button style="padding:4px 12px;font-size:12px;background:var(--blue)" onclick="openAppealModal('${t.id}')">View Appeal</button>`
               : `<button class="success" style="padding:4px 10px;font-size:12px" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
 
           return `<tr>
@@ -652,8 +657,9 @@ async function lockThread(id) {
   else alert('Failed to lock thread.');
 }
 
-function openAppealModal(tJson) {
-  const t = JSON.parse(tJson);
+function openAppealModal(id) {
+  const t = _ticketCache[id];
+  if (!t) { alert('Could not load ticket data.'); return; }
   const existing = document.getElementById('appeal-modal');
   if (existing) existing.remove();
 
