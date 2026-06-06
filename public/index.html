@@ -22,15 +22,26 @@
 
   <main>
     <h1>Issue a Citation</h1>
-
     <div id="form-msg" class="msg" style="display:none"></div>
 
     <form id="new-ticket-form">
       <div class="card">
         <h2>Recipient</h2>
-        <div class="field-group">
-          <label for="person_name">Name <span class="req">*</span></label>
-          <input type="text" id="person_name" name="person_name" required placeholder="Who is this citation for?">
+        <div class="field-group" style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+          <input type="checkbox" id="person_unknown" style="width:auto; margin-bottom:0;">
+          <label for="person_unknown" style="font-weight:400; margin-bottom:0; cursor:pointer;">Unknown — I don't know who this belongs to</label>
+        </div>
+        <div id="name-fields">
+          <div class="row">
+            <div class="field-group">
+              <label for="person_first">First Name <span class="req">*</span></label>
+              <input type="text" id="person_first" name="person_first" required placeholder="First name">
+            </div>
+            <div class="field-group">
+              <label for="person_last">Last Name <span class="opt">(optional)</span></label>
+              <input type="text" id="person_last" name="person_last" placeholder="Last name">
+            </div>
+          </div>
         </div>
       </div>
 
@@ -46,7 +57,6 @@
           </select>
           <div id="points-display" style="font-size:13px; color:var(--muted); margin-top:-10px; margin-bottom:16px;">0 pts — Warning only</div>
         </div>
-
         <div class="field-group">
           <label for="location">Location <span class="req">*</span></label>
           <input type="text" id="location" name="location" required placeholder="e.g. Kitchen sink, Driveway, Living room">
@@ -55,21 +65,17 @@
 
       <div class="card">
         <h2>Item Details <span style="font-weight:400; font-size:13px; color:var(--muted)">(optional)</span></h2>
-
         <div class="field-group">
           <label for="item_name">Item Name <span class="opt">(optional)</span></label>
           <input type="text" id="item_name" name="item_name" placeholder="e.g. Red bike, Dish, Backpack">
         </div>
-
         <div class="scan-btn-row">
           <button type="button" id="scan-btn" class="secondary">Scan Barcode</button>
           <span style="font-size:12px; color:var(--muted)">Auto-fills item name &amp; product #</span>
         </div>
-
         <div id="video-container">
           <video id="barcode-video" playsinline muted></video>
         </div>
-
         <div class="row">
           <div class="field-group">
             <label for="product_number">Product # <span class="opt">(optional)</span></label>
