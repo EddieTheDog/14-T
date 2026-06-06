@@ -1,0 +1,100 @@
+<!-- public/index.html -->
+<!-- 14-T New Ticket -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>14-T — Issue Ticket</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div>
+      <div class="logo">14-T</div>
+      <div class="tagline">Home Citation System</div>
+    </div>
+    <nav>
+      <a href="index.html">New Ticket</a>
+      <a href="dashboard.html">Dashboard</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Issue a Citation</h1>
+
+    <div id="form-msg" class="msg" style="display:none"></div>
+
+    <form id="new-ticket-form">
+      <div class="card">
+        <h2>Recipient</h2>
+        <div class="field-group">
+          <label for="person_name">Name <span class="req">*</span></label>
+          <input type="text" id="person_name" name="person_name" required placeholder="Who is this citation for?">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Violation</h2>
+        <div class="field-group">
+          <label for="violation_type">Type <span class="req">*</span></label>
+          <select id="violation_type" name="violation_type" required>
+            <option value="warning">Warning — 0 pts</option>
+            <option value="minor">Minor — 1 pt</option>
+            <option value="major">Major — 2 pts</option>
+            <option value="severe">Severe — 3 pts</option>
+          </select>
+          <div id="points-display" style="font-size:13px; color:var(--muted); margin-top:-10px; margin-bottom:16px;">0 pts — Warning only</div>
+        </div>
+
+        <div class="field-group">
+          <label for="location">Location <span class="req">*</span></label>
+          <input type="text" id="location" name="location" required placeholder="e.g. Kitchen sink, Driveway, Living room">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Item Details <span style="font-weight:400; font-size:13px; color:var(--muted)">(optional)</span></h2>
+
+        <div class="field-group">
+          <label for="item_name">Item Name <span class="opt">(optional)</span></label>
+          <input type="text" id="item_name" name="item_name" placeholder="e.g. Red bike, Dish, Backpack">
+        </div>
+
+        <div class="scan-btn-row">
+          <button type="button" id="scan-btn" class="secondary">Scan Barcode</button>
+          <span style="font-size:12px; color:var(--muted)">Auto-fills item name &amp; product #</span>
+        </div>
+
+        <div id="video-container">
+          <video id="barcode-video" playsinline muted></video>
+        </div>
+
+        <div class="row">
+          <div class="field-group">
+            <label for="product_number">Product # <span class="opt">(optional)</span></label>
+            <input type="text" id="product_number" name="product_number" placeholder="UPC / barcode">
+          </div>
+          <div class="field-group">
+            <label for="serial_number">Serial # <span class="opt">(optional)</span></label>
+            <input type="text" id="serial_number" name="serial_number" placeholder="Serial number">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Photo <span class="req">*</span></h2>
+        <div class="field-group">
+          <label for="photo">Evidence Photo <span class="req">*</span></label>
+          <input type="file" id="photo" name="photo" accept="image/*" capture="environment" required>
+        </div>
+      </div>
+
+      <button type="submit">Issue Ticket</button>
+    </form>
+  </main>
+
+  <footer>14-T Home Citation System</footer>
+  <script src="app.js"></script>
+</body>
+</html>
