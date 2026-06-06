@@ -26,9 +26,9 @@ export async function onRequest(context) {
     if (!ticket) return new Response(JSON.stringify({ error: 'Ticket not found.' }), { status: 404, headers });
     if (ticket.status === 'resolved') return new Response(JSON.stringify({ error: 'Ticket already resolved.' }), { status: 400, headers });
 
-    // Mark declined and lock thread — points remain
+    // Mark declined — points remain, thread closes. Works even if already locked.
     await env.DB.prepare(
-      `UPDATE tickets SET appeal_declined = 1, appeal_response_locked = 1, status = 'locked' WHERE id = ?`
+      `UPDATE tickets SET appeal_declined = 1, appeal_response_locked = 1 WHERE id = ?`
     ).bind(id).run();
 
     return new Response(JSON.stringify({ success: true }), { headers });
