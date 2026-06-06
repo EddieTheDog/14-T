@@ -21,11 +21,11 @@ const API = {
     return res.json();
   },
 
-  async claimTicket(id, first, last) {
+  async claimTicket(id, first, lastInitial) {
     const res = await fetch('/api/claim', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, first, last })
+      body: JSON.stringify({ id, first, last_initial: lastInitial })
     });
     return res.json();
   },
@@ -179,13 +179,13 @@ if (document.getElementById('new-ticket-form')) {
       const photoBase64 = await compressImage(photoFile);
       const violation = violationSelect.value;
       const firstName = isUnknown ? '' : document.getElementById('person_first').value.trim();
-      const lastName = isUnknown ? '' : (document.getElementById('person_last').value.trim() || '');
-      const displayName = isUnknown ? 'Unknown' : (lastName ? `${firstName} ${lastName}` : firstName);
+      const lastInitial = isUnknown ? '' : (document.getElementById('person_last_initial').value.trim().toUpperCase() || '');
+      const displayName = isUnknown ? 'Unknown' : (lastInitial ? `${firstName} ${lastInitial}.` : firstName);
 
       const payload = {
         id: generateId(),
         person_first: firstName,
-        person_last: lastName || null,
+        person_last_initial: lastInitial || null,
         person_name: displayName,
         is_unknown: isUnknown ? 1 : 0,
         violation_type: violation,
@@ -237,60 +237,112 @@ if (document.getElementById('ticket-view')) {
         return;
       }
 
-      // Already claimed — show identity gate
+      // Already claimed — show verify gate
       if (t.is_unknown && t.claimed_first) {
-        renderAlreadyClaimedGate(container, t);
+        renderVerifyGate(container, t, true);
         return;
       }
 
-      // Named ticket — show identity gate
-      renderNamedGate(container, t);
+      // Named ticket — show verify gate
+      renderVerifyGate(container, t, false);
     });
   }
 }
 
+function renderVerifyGate(container, t, isClaimed) {
+  const hasLastInitial = isClaimed ? !!t.claimed_last_initial : !!t.person_last_initial;
+  const ticketId = t.id;
+  container.innerHTML = `
+    <div class="card">
+      <h2>Verify your identity</h2>
+      <p style="margin-bottom:16px; font-size:14px; color:var(--muted)">Enter your name to view this citation.</p>
+      <div id="verify-msg"></div>
+      <div class="row">
+        <div class="field-group">
+          <label for="verify-first">First Name <span class="req">*</span></label>
+          <input
+            type="text"
+            id="verify-first"
+            name="first_name"
+            autocomplete="given-name"
+            placeholder="First name"
+            required
+          >
+        </div>
+        <div class="field-group">
+          <label for="verify-last-initial">Last Initial ${hasLastInitial ? '<span class="req">*</span>' : '<span class="opt">(optional)</span>'}</label>
+          <input
+            type="text"
+            id="verify-last-initial"
+            name="last_initial"
+            autocomplete="family-name"
+            maxlength="1"
+            placeholder="e.g. S"
+            style="text-transform:uppercase; width:80px;"
+            ${hasLastInitial ? 'required' : ''}
+          >
+        </div>
+      </div>
+      <button onclick="submitVerify('${ticketId}', ${isClaimed})">View My Ticket</button>
+    </div>
+  `;
+
+  container.querySelectorAll('input').forEach(input => {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitVerify(ticketId, isClaimed);
+    });
+  });
+}
+
 function renderClaimGate(container, t) {
+  const ticketId = t.id;
   container.innerHTML = `
     <div class="card">
       <h2>Is this citation yours?</h2>
-      <p style="margin-bottom:16px; font-size:14px; color:var(--muted)">A citation was issued at <strong>${t.location}</strong>${t.item_name ? ` regarding <strong>${t.item_name}</strong>` : ''}. Does this belong to you?</p>
-      <div style="display:flex; gap:10px;">
-        <button onclick="showClaimForm()">Yes, this is mine</button>
-        <button class="secondary" onclick="showNotYours()">No, it is not mine</button>
-      </div>
-      <div id="claim-form" style="display:none; margin-top:20px;">
-        <div id="claim-msg"></div>
-        <div class="row">
-          <div class="field-group">
-            <label for="claim-first">First Name <span class="req">*</span></label>
-            <input type="text" id="claim-first" placeholder="First name" required>
-          </div>
-          <div class="field-group">
-            <label for="claim-last">Last Name <span class="opt">(optional)</span></label>
-            <input type="text" id="claim-last" placeholder="Last name">
-          </div>
+      <p style="margin-bottom:16px; font-size:14px; color:var(--muted)">A citation was issued at <strong>${t.location}</strong>${t.item_name ? ` regarding <strong>${t.item_name}</strong>` : ''}. Enter your name to claim it.</p>
+      <div id="claim-msg"></div>
+      <div class="row">
+        <div class="field-group">
+          <label for="claim-first">First Name <span class="req">*</span></label>
+          <input
+            type="text"
+            id="claim-first"
+            name="first_name"
+            autocomplete="given-name"
+            placeholder="First name"
+            required
+          >
         </div>
-        <button onclick="submitClaim('${t.id}')">Confirm &amp; View Ticket</button>
+        <div class="field-group">
+          <label for="claim-last-initial">Last Initial <span class="opt">(optional)</span></label>
+          <input
+            type="text"
+            id="claim-last-initial"
+            name="last_initial"
+            autocomplete="family-name"
+            maxlength="1"
+            placeholder="e.g. S"
+            style="text-transform:uppercase; width:80px;"
+          >
+        </div>
       </div>
-      <div id="not-yours" style="display:none; margin-top:16px;" class="msg error">This citation is not for you.</div>
+      <button onclick="submitClaim('${ticketId}')">Claim &amp; View Ticket</button>
     </div>
   `;
-}
 
-function showClaimForm() {
-  document.getElementById('claim-form').style.display = 'block';
-}
-
-function showNotYours() {
-  document.getElementById('not-yours').style.display = 'block';
+  container.querySelectorAll('input').forEach(input => {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitClaim(ticketId);
+    });
+  });
 }
 
 async function submitClaim(id) {
   const first = document.getElementById('claim-first').value.trim();
-  const last = document.getElementById('claim-last').value.trim() || null;
+  const lastInitial = (document.getElementById('claim-last-initial').value.trim() || '').toUpperCase() || null;
   const msgEl = document.getElementById('claim-msg');
   if (!first) { showMsg(msgEl, 'First name is required.', 'error'); return; }
-  const result = await API.claimTicket(id, first, last);
+  const result = await API.claimTicket(id, first, lastInitial);
   if (result.success) {
     const data = await API.getTicket(id);
     renderFullTicket(document.getElementById('ticket-view'), data.ticket);
@@ -299,92 +351,42 @@ async function submitClaim(id) {
   }
 }
 
-function renderAlreadyClaimedGate(container, t) {
-  container.innerHTML = `
-    <div class="card">
-      <h2>Is this citation yours?</h2>
-      <p style="margin-bottom:16px; font-size:14px; color:var(--muted)">This citation has already been claimed. If it belongs to you, enter your name to verify.</p>
-      <div id="claimed-gate-msg"></div>
-      <div class="row">
-        <div class="field-group">
-          <label for="verify-first">First Name <span class="req">*</span></label>
-          <input type="text" id="verify-first" placeholder="First name">
-        </div>
-        <div class="field-group">
-          <label for="verify-last">Last Name <span class="opt">(optional)</span></label>
-          <input type="text" id="verify-last" placeholder="Last name">
-        </div>
-      </div>
-      <div style="display:flex; gap:10px;">
-        <button onclick="verifyClaim('${t.id}', '${t.claimed_first}', ${t.claimed_last ? `'${t.claimed_last}'` : 'null'})">Verify</button>
-        <button class="secondary" onclick="showPartialView()">This is not mine</button>
-      </div>
-      <div id="partial-view" style="display:none; margin-top:20px;">
-        ${renderPartialHTML(t)}
-      </div>
-    </div>
-  `;
-}
-
-function renderNamedGate(container, t) {
-  container.innerHTML = `
-    <div class="card">
-      <h2>Verify your identity</h2>
-      <p style="margin-bottom:16px; font-size:14px; color:var(--muted)">Enter your name to view this citation.</p>
-      <div id="named-gate-msg"></div>
-      <div class="row">
-        <div class="field-group">
-          <label for="verify-first">First Name <span class="req">*</span></label>
-          <input type="text" id="verify-first" placeholder="First name">
-        </div>
-        <div class="field-group">
-          <label for="verify-last">Last Name <span class="opt">(optional)</span></label>
-          <input type="text" id="verify-last" placeholder="Last name">
-        </div>
-      </div>
-      <div style="display:flex; gap:10px;">
-        <button onclick="verifyNamed('${t.id}', '${t.person_name}')">View My Ticket</button>
-        <button class="secondary" onclick="showPartialNamed()">This is not mine</button>
-      </div>
-      <div id="partial-named" style="display:none; margin-top:20px;">
-        ${renderPartialHTML(t)}
-      </div>
-    </div>
-  `;
-}
-
-function verifyClaim(id, claimedFirst, claimedLast) {
+async function submitVerify(id, isClaimed) {
   const enteredFirst = document.getElementById('verify-first').value.trim().toLowerCase();
-  const enteredLast = document.getElementById('verify-last').value.trim().toLowerCase();
-  const msgEl = document.getElementById('claimed-gate-msg');
-  const firstMatch = enteredFirst === claimedFirst.toLowerCase();
-  const lastMatch = !claimedLast || enteredLast === claimedLast.toLowerCase();
-  if (firstMatch && lastMatch) {
-    API.getTicket(id).then(data => renderFullTicket(document.getElementById('ticket-view'), data.ticket));
+  const enteredInitial = (document.getElementById('verify-last-initial').value.trim() || '').toUpperCase();
+
+  const data = await API.getTicket(id);
+  const t = data.ticket;
+
+  const correctFirst = isClaimed ? t.claimed_first : t.person_first;
+  const correctInitial = isClaimed ? t.claimed_last_initial : t.person_last_initial;
+
+  const firstMatch = enteredFirst === (correctFirst || '').toLowerCase();
+  const initialMatch = !correctInitial || enteredInitial === (correctInitial || '').toUpperCase();
+
+  if (firstMatch && initialMatch) {
+    renderFullTicket(document.getElementById('ticket-view'), t);
   } else {
-    showPartialView();
+    renderNotYoursTicket(document.getElementById('ticket-view'), t);
   }
 }
 
-function verifyNamed(id, personName) {
-  const enteredFirst = document.getElementById('verify-first').value.trim().toLowerCase();
-  const enteredLast = document.getElementById('verify-last').value.trim().toLowerCase();
-  const entered = (enteredFirst + (enteredLast ? ' ' + enteredLast : '')).toLowerCase();
-  if (entered === personName.toLowerCase()) {
-    API.getTicket(id).then(data => renderFullTicket(document.getElementById('ticket-view'), data.ticket));
-  } else {
-    showPartialNamed();
-  }
-}
-
-function showPartialView() { document.getElementById('partial-view').style.display = 'block'; }
-function showPartialNamed() { document.getElementById('partial-named').style.display = 'block'; }
-
-function renderPartialHTML(t) {
+function renderNotYoursTicket(container, t) {
   const dateStr = new Date(t.created_at).toLocaleDateString();
-  return `
-    <div style="border-top:1px solid var(--border); padding-top:16px;">
-      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Showing partial information only.</p>
+  container.innerHTML = `
+    <div class="ticket-header">
+      <div class="ticket-id">${t.id}</div>
+      <div class="ticket-name" style="color:var(--muted); font-style:italic;">Unverified</div>
+      <div style="margin-top:6px">
+        <span class="badge ${t.violation_type}">${t.violation_type.toUpperCase()}</span>
+        &nbsp;
+        <span class="badge ${t.status}">${t.status.toUpperCase()}</span>
+      </div>
+    </div>
+    <div class="ticket-body">
+      <div class="msg" style="display:block; margin-bottom:20px; background:var(--blue-light); color:var(--blue-dark); padding:14px; border-radius:6px;">
+        We cannot provide full information because this ticket does not belong to you.
+      </div>
       <div class="info-row"><span class="label">Date Issued</span><span>${dateStr}</span></div>
       <div class="info-row"><span class="label">Violation</span><span><span class="badge ${t.violation_type}">${t.violation_type.toUpperCase()}</span></span></div>
       <div class="info-row"><span class="label">Location</span><span>${t.location}</span></div>
@@ -395,7 +397,7 @@ function renderPartialHTML(t) {
 
 function renderFullTicket(container, t) {
   const displayName = t.claimed_first
-    ? (t.claimed_last ? `${t.claimed_first} ${t.claimed_last}` : t.claimed_first)
+    ? (t.claimed_last_initial ? `${t.claimed_first} ${t.claimed_last_initial}.` : t.claimed_first)
     : t.person_name;
   const dateStr = new Date(t.created_at).toLocaleString();
 
@@ -508,7 +510,9 @@ if (document.getElementById('dashboard')) {
       ? '<tr><td colspan="6" style="color:var(--muted)">No tickets issued yet.</td></tr>'
       : sorted.map(t => {
           const displayName = t.is_unknown
-            ? (t.claimed_first ? `${t.claimed_first}${t.claimed_last ? ' ' + t.claimed_last : ''} <em style="color:var(--muted);font-size:11px">(claimed)</em>` : '<em style="color:var(--muted)">Unknown</em>')
+            ? (t.claimed_first
+                ? `${t.claimed_first}${t.claimed_last_initial ? ' ' + t.claimed_last_initial + '.' : ''} <em style="color:var(--muted);font-size:11px">(claimed)</em>`
+                : '<em style="color:var(--muted)">Unknown</em>')
             : t.person_name;
           const statusLabel = t.appeal_flagged && t.status !== 'resolved' ? 'APPEAL' : t.status;
           const statusClass = t.appeal_flagged && t.status !== 'resolved' ? 'flagged' : t.status;
