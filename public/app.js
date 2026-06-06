@@ -443,48 +443,50 @@ function renderFullTicket(container, t) {
 
   // What the ticket-holder sees for appeal actions
   let appealSection = '';
-  if (t.status !== 'resolved' && t.status !== 'locked') {
-    if (!t.appeal_flagged) {
-      // No appeal yet — show form
-      appealSection = `
-        <hr class="divider">
-        <h2>File an Appeal</h2>
-        <div id="appeal-msg"></div>
-        <div class="field-group">
-          <label for="appeal-note">Explanation <span class="req">*</span></label>
-          <textarea id="appeal-note" placeholder="Explain your situation..."></textarea>
-        </div>
-        <div class="field-group">
-          <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
-          <input type="file" id="appeal-photo" accept="image/*" capture="environment">
-        </div>
-        <div class="field-group" style="display:flex; align-items:flex-start; gap:10px; margin-bottom:16px;">
-          <input type="checkbox" id="appeal-confirm" style="margin-top:3px; width:auto; flex-shrink:0;">
-          <label for="appeal-confirm" style="font-weight:400; font-size:13px; margin-bottom:0; cursor:pointer;">
-            I confirm that this citation was issued to me and that the information I am providing is accurate.
-          </label>
-        </div>
-        <button onclick="submitAppeal('${t.id}')">Submit Appeal</button>`;
-    } else if (t.appeal_flagged && t.appeal_response && !t.appeal_response_locked) {
-      // Issuer responded and left it open — allow rebuttal
-      appealSection = `
-        <hr class="divider">
-        <h2>Reply to Response</h2>
-        <div id="appeal-msg"></div>
-        <div class="field-group">
-          <label for="appeal-note">Your Reply <span class="req">*</span></label>
-          <textarea id="appeal-note" placeholder="Reply to the issuer's response..."></textarea>
-        </div>
-        <div class="field-group">
-          <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
-          <input type="file" id="appeal-photo" accept="image/*" capture="environment">
-        </div>
-        <button onclick="submitAppeal('${t.id}')">Send Reply</button>`;
-    } else if (t.appeal_flagged && !t.appeal_response) {
-      appealSection = `<div class="appeal-box" style="margin-top:16px;">Your appeal has been submitted and is under review.</div>`;
-    } else if (t.appeal_response_locked) {
-      appealSection = `<div class="msg" style="display:block;margin-top:16px;background:var(--blue-light);color:var(--blue-dark);padding:14px;">This appeal has been closed by the issuer. No further replies.</div>`;
-    }
+  if (t.status === 'resolved') {
+    // nothing — resolved message shown below
+  } else if (t.appeal_declined) {
+    appealSection = `<div class="msg error" style="display:block;margin-top:16px;">Your appeal has been declined. Points remain.</div>`;
+  } else if (t.appeal_response_locked || t.status === 'locked') {
+    appealSection = `<div class="msg" style="display:block;margin-top:16px;background:var(--blue-light);color:var(--blue-dark);padding:14px;">This appeal has been closed by the issuer. No further replies.</div>`;
+  } else if (!t.appeal_flagged) {
+    // No appeal yet — show form
+    appealSection = `
+      <hr class="divider">
+      <h2>File an Appeal</h2>
+      <div id="appeal-msg"></div>
+      <div class="field-group">
+        <label for="appeal-note">Explanation <span class="req">*</span></label>
+        <textarea id="appeal-note" placeholder="Explain your situation..."></textarea>
+      </div>
+      <div class="field-group">
+        <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
+        <input type="file" id="appeal-photo" accept="image/*" capture="environment">
+      </div>
+      <div class="field-group" style="display:flex; align-items:flex-start; gap:10px; margin-bottom:16px;">
+        <input type="checkbox" id="appeal-confirm" style="margin-top:3px; width:auto; flex-shrink:0;">
+        <label for="appeal-confirm" style="font-weight:400; font-size:13px; margin-bottom:0; cursor:pointer;">
+          I confirm that this citation was issued to me and that the information I am providing is accurate.
+        </label>
+      </div>
+      <button onclick="submitAppeal('${t.id}')">Submit Appeal</button>`;
+  } else if (t.appeal_flagged && t.appeal_response && !t.appeal_response_locked) {
+    // Issuer responded and left it open — allow one rebuttal
+    appealSection = `
+      <hr class="divider">
+      <h2>Reply to Response</h2>
+      <div id="appeal-msg"></div>
+      <div class="field-group">
+        <label for="appeal-note">Your Reply <span class="req">*</span></label>
+        <textarea id="appeal-note" placeholder="Reply to the issuer's response..."></textarea>
+      </div>
+      <div class="field-group">
+        <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
+        <input type="file" id="appeal-photo" accept="image/*" capture="environment">
+      </div>
+      <button onclick="submitAppeal('${t.id}')">Send Reply</button>`;
+  } else if (t.appeal_flagged && !t.appeal_response) {
+    appealSection = `<div class="appeal-box" style="margin-top:16px;">Your appeal has been submitted and is under review.</div>`;
   }
 
   container.innerHTML = `
