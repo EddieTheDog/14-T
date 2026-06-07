@@ -25,11 +25,12 @@
     <div id="form-msg" class="msg" style="display:none"></div>
 
     <form id="new-ticket-form">
+
       <div class="card">
         <h2>Recipient</h2>
-        <div class="field-group" style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
-          <input type="checkbox" id="person_unknown" style="width:auto; margin-bottom:0;">
-          <label for="person_unknown" style="font-weight:400; margin-bottom:0; cursor:pointer;">Unknown — I don't know who this belongs to</label>
+        <div class="field-group" style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <input type="checkbox" id="person_unknown" style="width:auto;margin-bottom:0;">
+          <label for="person_unknown" style="font-weight:400;margin-bottom:0;cursor:pointer;">Unknown — I don't know who this belongs to</label>
         </div>
         <div id="name-fields">
           <div class="row">
@@ -39,7 +40,7 @@
             </div>
             <div class="field-group">
               <label for="person_last_initial">Last Initial <span class="opt">(optional)</span></label>
-              <input type="text" id="person_last_initial" name="person_last_initial" autocomplete="family-name" maxlength="1" placeholder="e.g. S" style="text-transform:uppercase; width:80px;">
+              <input type="text" id="person_last_initial" name="person_last_initial" maxlength="1" placeholder="e.g. S" style="text-transform:uppercase;width:80px;">
             </div>
           </div>
         </div>
@@ -50,12 +51,22 @@
         <div class="field-group">
           <label for="violation_type">Type <span class="req">*</span></label>
           <select id="violation_type" name="violation_type" required>
+            <option value="notice">Notice — 0 pts (informational)</option>
             <option value="warning">Warning — 0 pts</option>
+            <option value="removal">Removal Notice — 0 pts (must remove item)</option>
             <option value="minor">Minor — 1 pt</option>
             <option value="major">Major — 2 pts</option>
             <option value="severe">Severe — 3 pts</option>
+            <option value="contest">Contested — 0 pts (ownership disputed)</option>
           </select>
-          <div id="points-display" style="font-size:13px; color:var(--muted); margin-top:-10px; margin-bottom:16px;">0 pts — Warning only</div>
+          <div id="points-display" style="font-size:13px;color:var(--muted);margin-top:-10px;margin-bottom:16px;"></div>
+        </div>
+        <div class="field-group">
+          <label for="penal_code">Penal Code <span class="opt">(optional)</span></label>
+          <select id="penal_code" name="penal_code">
+            <option value="">— Select a code —</option>
+          </select>
+          <div id="penal-desc" style="font-size:12px;color:var(--muted);margin-top:-10px;margin-bottom:16px;display:none;"></div>
         </div>
         <div class="field-group">
           <label for="location">Location <span class="req">*</span></label>
@@ -63,41 +74,44 @@
         </div>
         <div class="field-group">
           <label for="description">What They Did Wrong <span class="req">*</span></label>
-          <textarea id="description" name="description" required placeholder="Describe the violation(s). You can list multiple issues here." style="min-height:100px;"></textarea>
+          <textarea id="description" name="description" required placeholder="Describe the violation(s). List multiple issues if needed." style="min-height:100px;"></textarea>
         </div>
       </div>
 
       <div class="card">
-        <h2>Item Details <span style="font-weight:400; font-size:13px; color:var(--muted)">(optional)</span></h2>
+        <h2>Item Details <span style="font-weight:400;font-size:13px;color:var(--muted)">(optional)</span></h2>
         <div class="field-group">
-          <label for="item_name">Item Name <span class="opt">(optional)</span></label>
+          <label for="item_name">Item Name</label>
           <input type="text" id="item_name" name="item_name" placeholder="e.g. Red bike, Dish, Backpack">
         </div>
         <div class="scan-btn-row">
           <button type="button" id="scan-btn" class="secondary">Scan Barcode</button>
-          <span style="font-size:12px; color:var(--muted)">Auto-fills item name &amp; product #</span>
+          <span style="font-size:12px;color:var(--muted)">Auto-fills item name &amp; product #</span>
         </div>
         <div id="video-container">
           <video id="barcode-video" playsinline muted></video>
         </div>
         <div class="row">
           <div class="field-group">
-            <label for="product_number">Product # <span class="opt">(optional)</span></label>
+            <label for="product_number">Product #</label>
             <input type="text" id="product_number" name="product_number" placeholder="UPC / barcode">
           </div>
           <div class="field-group">
-            <label for="serial_number">Serial # <span class="opt">(optional)</span></label>
+            <label for="serial_number">Serial #</label>
             <input type="text" id="serial_number" name="serial_number" placeholder="Serial number">
           </div>
         </div>
       </div>
 
       <div class="card">
-        <h2>Photo <span class="req">*</span></h2>
+        <h2>Photos</h2>
         <div class="field-group">
-          <label for="photo">Evidence Photo <span class="req">*</span></label>
+          <label for="photo">Primary Evidence Photo <span class="req">*</span></label>
           <input type="file" id="photo" name="photo" accept="image/*" capture="environment" required>
         </div>
+        <div id="extra-photos"></div>
+        <button type="button" id="add-photo-btn" class="secondary" style="margin-top:4px;">+ Add Another Photo</button>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px;">You can add as many photos as needed.</div>
       </div>
 
       <button type="submit">Issue Ticket</button>
