@@ -7,23 +7,24 @@ export async function onRequest(context) {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*'
   };
-  if (method === 'OPTIONS') {
-    return new Response(null, { headers });
-  }
+  if (method === 'OPTIONS') return new Response(null, { headers });
+
   if (method === 'POST') {
     try {
       const body = await request.json();
       const {
         id, person_first, person_last_initial, person_name,
-        is_unknown, violation_type, points, location, description,
-        item_name, product_number, serial_number, photo_base64, created_at
+        is_unknown, violation_type, points, location, penal_code, description,
+        item_name, product_number, serial_number, photo_base64, extra_photos, created_at
       } = body;
+
       if (!id || !person_name || !violation_type || !location || !photo_base64) {
         return new Response(JSON.stringify({ error: 'Missing required fields.' }), { status: 400, headers });
       }
+
       await env.DB.prepare(
-        `INSERT INTO tickets (id, person_first, person_last_initial, person_name, is_unknown, violation_type, points, location, description, item_name, product_number, serial_number, photo_base64, status, appeal_flagged, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', 0, ?)`
+        `INSERT INTO tickets (id, person_first, person_last_initial, person_name, is_unknown, violation_type, points, location, penal_code, description, item_name, product_number, serial_number, photo_base64, extra_photos, status, appeal_flagged, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', 0, ?)`
       ).bind(
         id,
         person_first || null,
@@ -33,15 +34,16 @@ export async function onRequest(context) {
         violation_type,
         points,
         location,
+        penal_code || null,
         description || null,
         item_name || null,
         product_number || null,
         serial_number || null,
         photo_base64,
+        extra_photos || null,
         created_at
       ).run();
 
-      // Only track points for named (non-unknown) tickets
       if (!is_unknown && person_name !== 'Unknown' && points > 0) {
         const existing = await env.DB.prepare(`SELECT * FROM people WHERE name = ?`).bind(person_name).first();
         if (existing) {
@@ -56,6 +58,7 @@ export async function onRequest(context) {
       return new Response(JSON.stringify({ error: err.message }), { status: 500, headers });
     }
   }
+
   if (method === 'GET') {
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
@@ -77,5 +80,6 @@ export async function onRequest(context) {
       }
     }
   }
+
   return new Response(JSON.stringify({ error: 'Method not allowed.' }), { status: 405, headers });
 }
