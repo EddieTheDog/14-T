@@ -172,11 +172,20 @@ if (document.getElementById('new-ticket-form')) {
 
     penalSelect.addEventListener('change', () => {
       const found = PENAL_CODES.find(p => p.code === penalSelect.value);
-      if (found && found.desc) {
+      const descEl = document.getElementById('description');
+      if (!found || found.code === '14T-900') {
+        // "Other" — clear description, let user type freely
+        penalDesc.style.display = 'none';
+        if (descEl) {
+          descEl.value = '';
+          descEl.dataset.autofilled = '0';
+          descEl.placeholder = 'Describe what they did wrong...';
+          descEl.focus();
+        }
+      } else {
         penalDesc.textContent = found.desc;
         penalDesc.style.display = 'block';
-        // Auto-fill description if empty or was auto-filled
-        const descEl = document.getElementById('description');
+        // Auto-fill description if empty or was previously auto-filled
         if (descEl && (!descEl.value || descEl.dataset.autofilled === '1')) {
           descEl.value = found.desc;
           descEl.dataset.autofilled = '1';
@@ -186,8 +195,6 @@ if (document.getElementById('new-ticket-form')) {
           violationSelect.value = 'removal';
           violationSelect.dispatchEvent(new Event('change'));
         }
-      } else {
-        penalDesc.style.display = 'none';
       }
     });
   }
@@ -248,29 +255,72 @@ if (document.getElementById('new-ticket-form')) {
     });
   }
 
+  // ── Location dropdown ────────────────────────────────────────────────────
+  const locationPreset = document.getElementById('location_preset');
+  const locationOtherWrap = document.getElementById('location-other-wrap');
+  const locationInput = document.getElementById('location');
+  if (locationPreset) {
+    locationPreset.addEventListener('change', () => {
+      if (locationPreset.value === '__other__') {
+        locationOtherWrap.style.display = 'block';
+        locationInput.required = true;
+        locationInput.focus();
+      } else {
+        locationOtherWrap.style.display = 'none';
+        locationInput.required = false;
+        locationInput.value = '';
+      }
+    });
+  }
+
   // ── Multi-photo ──────────────────────────────────────────────────────────
   const photoInput = document.getElementById('photo');
   const extraPhotosContainer = document.getElementById('extra-photos');
   const addPhotoBtn = document.getElementById('add-photo-btn');
-  let extraPhotoFiles = [];
+  // Store files directly — don't rely on DOM inputs staying attached
+  const extraPhotoFiles = [];
 
   if (addPhotoBtn) {
     addPhotoBtn.addEventListener('click', () => {
+      const idx = extraPhotoFiles.length; // slot index before file chosen
+      extraPhotoFiles.push(null); // reserve slot
+
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'margin-bottom:10px;';
+
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
-      input.capture = 'environment';
-      input.style.cssText = 'width:100%;margin-bottom:8px;';
+      input.style.cssText = 'width:100%;margin-bottom:6px;';
+
+      const preview = document.createElement('div');
+      preview.style.cssText = 'font-size:12px;color:var(--muted);';
+      preview.textContent = `Photo ${idx + 2}: not selected`;
+
       input.addEventListener('change', () => {
-        if (input.files[0]) {
-          extraPhotoFiles.push(input.files[0]);
-          const label = document.createElement('div');
-          label.style.cssText = 'font-size:12px;color:var(--success);margin-bottom:8px;';
-          label.textContent = `✓ Photo ${extraPhotoFiles.length + 1}: ${input.files[0].name}`;
-          input.replaceWith(label);
+        const file = input.files[0];
+        if (file) {
+          extraPhotoFiles[idx] = file;
+          preview.style.color = 'var(--success)';
+          preview.textContent = `✓ Photo ${idx + 2}: ${file.name}`;
+          // Show thumbnail
+          const reader = new FileReader();
+          reader.onload = e => {
+            let img = wrapper.querySelector('img');
+            if (!img) {
+              img = document.createElement('img');
+              img.style.cssText = 'width:100%;max-height:160px;object-fit:cover;border:1px solid var(--border);margin-top:4px;';
+              wrapper.appendChild(img);
+            }
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
         }
       });
-      extraPhotosContainer.appendChild(input);
+
+      wrapper.appendChild(input);
+      wrapper.appendChild(preview);
+      extraPhotosContainer.appendChild(wrapper);
     });
   }
 
@@ -292,11 +342,16 @@ if (document.getElementById('new-ticket-form')) {
     submitBtn.textContent = 'Submitting...';
 
     try {
+      const locationVal = (locationPreset && locationPreset.value && locationPreset.value !== '__other__')
+        ? locationPreset.value
+        : (locationInput ? locationInput.value.trim() : '');
+      if (!locationVal) { showMsg(msgEl, 'Location is required.', 'error'); submitBtn.disabled = false; submitBtn.textContent = 'Issue Ticket'; return; }
+
       const photoBase64 = await compressImage(primaryPhoto);
 
-      // Compress extra photos
+      // Compress extra photos — filter out nulls (slots where user never picked a file)
       const extraBase64s = [];
-      for (const f of extraPhotoFiles) {
+      for (const f of extraPhotoFiles.filter(Boolean)) {
         try { extraBase64s.push(await compressImage(f)); } catch { /* skip */ }
       }
 
@@ -315,7 +370,7 @@ if (document.getElementById('new-ticket-form')) {
         is_unknown: isUnknown ? 1 : 0,
         violation_type: violation,
         points: violationPoints(violation),
-        location: document.getElementById('location').value.trim(),
+        location: locationVal,
         penal_code: penalCode || null,
         description: descVal,
         item_name: document.getElementById('item_name').value.trim() || null,
