@@ -1,68 +1,90 @@
 // public/app.js
 // 14-T Client Application
 
+// ── PENAL CODES ──────────────────────────────────────────────────────────────
+const PENAL_CODES = [
+  // Abandonment / Left Out
+  { code: '14T-100', label: 'Left Out / Abandoned', desc: 'Item left out and unattended for an unreasonable period.', category: 'abandonment' },
+  { code: '14T-101', label: 'Overnight Abandonment', desc: 'Item left out overnight without prior arrangement.', category: 'abandonment' },
+  { code: '14T-102', label: 'Common Area Obstruction', desc: 'Item blocking shared space or walkway.', category: 'abandonment' },
+  { code: '14T-103', label: 'Returned to Wrong Location', desc: 'Item placed in incorrect storage area after use.', category: 'abandonment' },
+  // Cleanliness
+  { code: '14T-200', label: 'Dish / Utensil Left Out', desc: 'Dirty dish, cup, or utensil left in non-kitchen area.', category: 'cleanliness' },
+  { code: '14T-201', label: 'Food / Wrapper Left Out', desc: 'Food, packaging, or food waste left in improper area.', category: 'cleanliness' },
+  { code: '14T-202', label: 'Spill Not Cleaned', desc: 'Spill or mess left unaddressed by responsible party.', category: 'cleanliness' },
+  { code: '14T-203', label: 'Trash Not Disposed', desc: 'Trash not placed in bin or bin not taken out when full.', category: 'cleanliness' },
+  { code: '14T-204', label: 'Bathroom Left Unclean', desc: 'Bathroom left in unsanitary condition.', category: 'cleanliness' },
+  // Noise / Disturbance
+  { code: '14T-300', label: 'Noise Violation', desc: 'Unreasonable noise disturbance during quiet hours.', category: 'noise' },
+  { code: '14T-301', label: 'Repeated Disturbance', desc: 'Second or subsequent noise/disturbance offense.', category: 'noise' },
+  // Property
+  { code: '14T-400', label: 'Unauthorized Use of Property', desc: 'Using another person\'s belongings without permission.', category: 'property' },
+  { code: '14T-401', label: 'Property Damage', desc: 'Damage caused to shared or personal property.', category: 'property' },
+  { code: '14T-402', label: 'Borrowed — Not Returned', desc: 'Item borrowed and not returned within agreed timeframe.', category: 'property' },
+  // Chores / Responsibilities
+  { code: '14T-500', label: 'Chore Not Completed', desc: 'Assigned chore not completed by deadline.', category: 'chores' },
+  { code: '14T-501', label: 'Chore Done Improperly', desc: 'Chore completed but not to acceptable standard.', category: 'chores' },
+  // Removal Notices
+  { code: '14T-600', label: 'Removal Notice — 24hr', desc: 'Item must be removed within 24 hours or it will be relocated.', category: 'removal' },
+  { code: '14T-601', label: 'Removal Notice — 48hr', desc: 'Item must be removed within 48 hours or it will be relocated.', category: 'removal' },
+  { code: '14T-602', label: 'Removal Notice — 72hr', desc: 'Item must be removed within 72 hours or it will be relocated.', category: 'removal' },
+  { code: '14T-603', label: 'Immediate Removal Required', desc: 'Item is blocking access or creating hazard and must be moved immediately.', category: 'removal' },
+  // Other
+  { code: '14T-900', label: 'Other', desc: '', category: 'other' }
+];
+
+const CATEGORY_LABELS = {
+  abandonment: 'Abandonment / Left Out',
+  cleanliness: 'Cleanliness',
+  noise: 'Noise / Disturbance',
+  property: 'Property',
+  chores: 'Chores / Responsibilities',
+  removal: 'Removal Notices',
+  other: 'Other'
+};
+
+// ── VIOLATION TYPES ──────────────────────────────────────────────────────────
+const VIOLATION_TYPES = {
+  notice:   { label: 'Notice',          points: 0, desc: 'Informational only, no points' },
+  warning:  { label: 'Warning',         points: 0, desc: '0 pts — Warning only' },
+  removal:  { label: 'Removal Notice',  points: 0, desc: '0 pts — Must remove item or face escalation' },
+  minor:    { label: 'Minor',           points: 1, desc: '1 pt' },
+  major:    { label: 'Major',           points: 2, desc: '2 pts' },
+  severe:   { label: 'Severe',          points: 3, desc: '3 pts' },
+  contest:  { label: 'Contested',       points: 0, desc: '0 pts — Ownership/responsibility disputed' }
+};
+
 const API = {
   async createTicket(data) {
-    const res = await fetch('/api/tickets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
+    const res = await fetch('/api/tickets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
     return res.json();
   },
-
   async getTicket(id) {
     const res = await fetch(`/api/tickets?id=${id}`);
     return res.json();
   },
-
   async getAllTickets() {
     const res = await fetch('/api/tickets');
     return res.json();
   },
-
-  async claimTicket(id, first, lastInitial) {
-    const res = await fetch('/api/claim', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, first, last_initial: lastInitial })
-    });
+  async claimTicket(id, name) {
+    const res = await fetch('/api/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, name }) });
     return res.json();
   },
-
   async resolve(id, dismiss) {
-    const res = await fetch('/api/resolve', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, dismiss })
-    });
+    const res = await fetch('/api/resolve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, dismiss }) });
     return res.json();
   },
-
-  async appeal(id, note, photoBase64, confirmed) {
-    const res = await fetch('/api/appeal', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, note, photo_base64: photoBase64 || null, confirmed })
-    });
+  async appeal(id, note, photoBase64) {
+    const res = await fetch('/api/appeal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, note, photo_base64: photoBase64 || null }) });
     return res.json();
   },
-
   async respondToAppeal(id, response, lock, photoBase64) {
-    const res = await fetch('/api/appeal-respond', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, response, lock, photo_base64: photoBase64 || null })
-    });
+    const res = await fetch('/api/appeal-respond', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, response, lock, photo_base64: photoBase64 || null }) });
     return res.json();
   },
-
   async declineAppeal(id) {
-    const res = await fetch('/api/appeal-decline', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id })
-    });
+    const res = await fetch('/api/appeal-decline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
     return res.json();
   }
 };
@@ -74,16 +96,17 @@ function generateId() {
 }
 
 function violationPoints(type) {
-  return { warning: 0, minor: 1, major: 2, severe: 3 }[type] ?? 0;
+  return VIOLATION_TYPES[type]?.points ?? 0;
 }
 
 function showMsg(el, text, type) {
+  if (!el) return;
   el.className = `msg ${type}`;
   el.textContent = text;
   el.style.display = 'block';
 }
 
-async function compressImage(file, maxWidth = 800, quality = 0.6) {
+async function compressImage(file, maxWidth = 1000, quality = 0.7) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -92,8 +115,7 @@ async function compressImage(file, maxWidth = 800, quality = 0.6) {
         const canvas = document.createElement('canvas');
         let w = img.width, h = img.height;
         if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
-        canvas.width = w;
-        canvas.height = h;
+        canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
         resolve(canvas.toDataURL('image/jpeg', quality));
       };
@@ -129,7 +151,52 @@ if (document.getElementById('new-ticket-form')) {
   const itemNameInput = document.getElementById('item_name');
   const unknownCheck = document.getElementById('person_unknown');
   const nameFields = document.getElementById('name-fields');
+  const penalSelect = document.getElementById('penal_code');
+  const penalDesc = document.getElementById('penal-desc');
   let stream = null, scanning = false;
+
+  // Populate penal code select grouped by category
+  if (penalSelect) {
+    const categories = [...new Set(PENAL_CODES.map(p => p.category))];
+    categories.forEach(cat => {
+      const group = document.createElement('optgroup');
+      group.label = CATEGORY_LABELS[cat];
+      PENAL_CODES.filter(p => p.category === cat).forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.code;
+        opt.textContent = `${p.code} — ${p.label}`;
+        group.appendChild(opt);
+      });
+      penalSelect.appendChild(group);
+    });
+
+    penalSelect.addEventListener('change', () => {
+      const found = PENAL_CODES.find(p => p.code === penalSelect.value);
+      if (found && found.desc) {
+        penalDesc.textContent = found.desc;
+        penalDesc.style.display = 'block';
+        // Auto-fill description if empty or was auto-filled
+        const descEl = document.getElementById('description');
+        if (descEl && (!descEl.value || descEl.dataset.autofilled === '1')) {
+          descEl.value = found.desc;
+          descEl.dataset.autofilled = '1';
+        }
+        // Auto-set removal type for removal codes
+        if (found.category === 'removal' && violationSelect) {
+          violationSelect.value = 'removal';
+          violationSelect.dispatchEvent(new Event('change'));
+        }
+      } else {
+        penalDesc.style.display = 'none';
+      }
+    });
+  }
+
+  // Clear autofill flag when user edits description manually
+  const descEl = document.getElementById('description');
+  if (descEl) {
+    descEl.addEventListener('input', () => { descEl.dataset.autofilled = '0'; });
+  }
 
   if (unknownCheck) {
     unknownCheck.addEventListener('change', () => {
@@ -140,9 +207,12 @@ if (document.getElementById('new-ticket-form')) {
 
   if (violationSelect) {
     violationSelect.addEventListener('change', () => {
-      const pts = violationPoints(violationSelect.value);
-      pointsDisplay.textContent = pts === 0 ? '0 pts — Warning only' : `${pts} pt${pts !== 1 ? 's' : ''}`;
+      const vt = VIOLATION_TYPES[violationSelect.value];
+      pointsDisplay.textContent = vt ? vt.desc : '';
     });
+    // Init
+    const vt = VIOLATION_TYPES[violationSelect.value];
+    if (vt && pointsDisplay) pointsDisplay.textContent = vt.desc;
   }
 
   if (scanBtn) {
@@ -156,8 +226,7 @@ if (document.getElementById('new-ticket-form')) {
       }
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        video.srcObject = stream;
-        video.play();
+        video.srcObject = stream; video.play();
         videoContainer.style.display = 'block';
         scanBtn.textContent = 'Stop Scanning';
         scanning = true;
@@ -175,9 +244,33 @@ if (document.getElementById('new-ticket-form')) {
             scanBtn.textContent = 'Scan Barcode';
           }
         });
-      } catch {
-        showMsg(msgEl, 'Camera access denied or not available.', 'error');
-      }
+      } catch { showMsg(msgEl, 'Camera access denied or not available.', 'error'); }
+    });
+  }
+
+  // ── Multi-photo ──────────────────────────────────────────────────────────
+  const photoInput = document.getElementById('photo');
+  const extraPhotosContainer = document.getElementById('extra-photos');
+  const addPhotoBtn = document.getElementById('add-photo-btn');
+  let extraPhotoFiles = [];
+
+  if (addPhotoBtn) {
+    addPhotoBtn.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.capture = 'environment';
+      input.style.cssText = 'width:100%;margin-bottom:8px;';
+      input.addEventListener('change', () => {
+        if (input.files[0]) {
+          extraPhotoFiles.push(input.files[0]);
+          const label = document.createElement('div');
+          label.style.cssText = 'font-size:12px;color:var(--success);margin-bottom:8px;';
+          label.textContent = `✓ Photo ${extraPhotoFiles.length + 1}: ${input.files[0].name}`;
+          input.replaceWith(label);
+        }
+      });
+      extraPhotosContainer.appendChild(input);
     });
   }
 
@@ -186,40 +279,56 @@ if (document.getElementById('new-ticket-form')) {
     msgEl.style.display = 'none';
 
     const isUnknown = unknownCheck && unknownCheck.checked;
-    const photoFile = document.getElementById('photo').files[0];
-    if (!photoFile) { showMsg(msgEl, 'A photo is required.', 'error'); return; }
+    if (!isUnknown) {
+      const firstName = document.getElementById('person_first').value.trim();
+      if (!firstName) { showMsg(msgEl, 'First name is required.', 'error'); return; }
+    }
+
+    const primaryPhoto = photoInput ? photoInput.files[0] : null;
+    if (!primaryPhoto) { showMsg(msgEl, 'A photo is required.', 'error'); return; }
 
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
 
     try {
-      const photoBase64 = await compressImage(photoFile);
+      const photoBase64 = await compressImage(primaryPhoto);
+
+      // Compress extra photos
+      const extraBase64s = [];
+      for (const f of extraPhotoFiles) {
+        try { extraBase64s.push(await compressImage(f)); } catch { /* skip */ }
+      }
+
       const violation = violationSelect.value;
       const firstName = isUnknown ? '' : document.getElementById('person_first').value.trim();
       const lastInitial = isUnknown ? '' : (document.getElementById('person_last_initial').value.trim().toUpperCase() || '');
       const displayName = isUnknown ? 'Unknown' : (lastInitial ? `${firstName} ${lastInitial}.` : firstName);
+      const penalCode = penalSelect ? penalSelect.value : null;
+      const descVal = document.getElementById('description')?.value.trim() || null;
 
       const payload = {
         id: generateId(),
-        person_first: firstName,
+        person_first: firstName || null,
         person_last_initial: lastInitial || null,
         person_name: displayName,
         is_unknown: isUnknown ? 1 : 0,
         violation_type: violation,
         points: violationPoints(violation),
         location: document.getElementById('location').value.trim(),
-        description: document.getElementById('description').value.trim() || null,
+        penal_code: penalCode || null,
+        description: descVal,
         item_name: document.getElementById('item_name').value.trim() || null,
         product_number: document.getElementById('product_number').value.trim() || null,
         serial_number: document.getElementById('serial_number').value.trim() || null,
         photo_base64: photoBase64,
+        extra_photos: extraBase64s.length ? JSON.stringify(extraBase64s) : null,
         created_at: new Date().toISOString()
       };
 
       const result = await API.createTicket(payload);
       if (result.success) {
-        sessionStorage.setItem('last_ticket', JSON.stringify(payload));
+        sessionStorage.setItem('last_ticket', JSON.stringify({ ...payload, photo_base64: photoBase64 }));
         window.location.href = `print.html?id=${payload.id}`;
       } else {
         showMsg(msgEl, result.error || 'Failed to create ticket.', 'error');
@@ -238,6 +347,7 @@ if (document.getElementById('new-ticket-form')) {
 if (document.getElementById('ticket-view')) {
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id');
+  const bypass = params.get('bypass'); // issuer preview mode
   const container = document.getElementById('ticket-view');
 
   if (!id) {
@@ -250,66 +360,41 @@ if (document.getElementById('ticket-view')) {
       }
       const t = data.ticket;
 
+      // Issuer bypass — show full ticket without name gate
+      if (bypass === '1') {
+        renderFullTicket(container, t, true);
+        return;
+      }
+
       // Unknown ticket — not yet claimed
-      if (t.is_unknown && !t.claimed_first) {
+      if (t.is_unknown && !t.claimed_name) {
         renderClaimGate(container, t);
         return;
       }
 
-      // Already claimed — show verify gate
-      if (t.is_unknown && t.claimed_first) {
-        renderVerifyGate(container, t, true);
-        return;
-      }
-
-      // Named ticket — show verify gate
-      renderVerifyGate(container, t, false);
+      // Named or claimed ticket — show name gate
+      renderVerifyGate(container, t);
     });
   }
 }
 
-function renderVerifyGate(container, t, isClaimed) {
-  const hasLastInitial = isClaimed ? !!t.claimed_last_initial : !!t.person_last_initial;
+function renderVerifyGate(container, t) {
+  const isClaimed = t.is_unknown && !!t.claimed_name;
   const ticketId = t.id;
   container.innerHTML = `
     <div class="card">
       <h2>Verify your identity</h2>
-      <p style="margin-bottom:16px; font-size:14px; color:var(--muted)">Enter your name to view this citation.</p>
+      <p style="margin-bottom:16px;font-size:14px;color:var(--muted)">Enter your name to view this citation.</p>
       <div id="verify-msg"></div>
-      <div class="row">
-        <div class="field-group">
-          <label for="verify-first">First Name <span class="req">*</span></label>
-          <input
-            type="text"
-            id="verify-first"
-            name="first_name"
-            autocomplete="given-name"
-            placeholder="First name"
-            required
-          >
-        </div>
-        <div class="field-group">
-          <label for="verify-last-initial">Last Initial ${hasLastInitial ? '<span class="req">*</span>' : '<span class="opt">(optional)</span>'}</label>
-          <input
-            type="text"
-            id="verify-last-initial"
-            name="last_initial"
-            autocomplete="family-name"
-            maxlength="1"
-            placeholder="e.g. S"
-            style="text-transform:uppercase; width:80px;"
-            ${hasLastInitial ? 'required' : ''}
-          >
-        </div>
+      <div class="field-group">
+        <label for="verify-name">Your Name <span class="req">*</span></label>
+        <input type="text" id="verify-name" autocomplete="name" placeholder="First name or full name" style="max-width:280px;">
       </div>
       <button onclick="submitVerify('${ticketId}', ${isClaimed})">View My Ticket</button>
     </div>
   `;
-
-  container.querySelectorAll('input').forEach(input => {
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') submitVerify(ticketId, isClaimed);
-    });
+  document.getElementById('verify-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitVerify(ticketId, isClaimed);
   });
 }
 
@@ -318,198 +403,180 @@ function renderClaimGate(container, t) {
   container.innerHTML = `
     <div class="card">
       <h2>Is this citation yours?</h2>
-      <p style="margin-bottom:16px; font-size:14px; color:var(--muted)">A citation was issued at <strong>${t.location}</strong>${t.item_name ? ` regarding <strong>${t.item_name}</strong>` : ''}. Enter your name to claim it.</p>
+      <p style="margin-bottom:16px;font-size:14px;color:var(--muted)">A citation was issued at <strong>${t.location}</strong>${t.item_name ? ` regarding <strong>${t.item_name}</strong>` : ''}. Enter your name to claim it.</p>
       <div id="claim-msg"></div>
-      <div class="row">
-        <div class="field-group">
-          <label for="claim-first">First Name <span class="req">*</span></label>
-          <input
-            type="text"
-            id="claim-first"
-            name="first_name"
-            autocomplete="given-name"
-            placeholder="First name"
-            required
-          >
-        </div>
-        <div class="field-group">
-          <label for="claim-last-initial">Last Initial <span class="opt">(optional)</span></label>
-          <input
-            type="text"
-            id="claim-last-initial"
-            name="last_initial"
-            autocomplete="family-name"
-            maxlength="1"
-            placeholder="e.g. S"
-            style="text-transform:uppercase; width:80px;"
-          >
-        </div>
+      <div class="field-group">
+        <label for="claim-name">Your Name <span class="req">*</span></label>
+        <input type="text" id="claim-name" autocomplete="name" placeholder="First name or full name" style="max-width:280px;">
       </div>
       <button onclick="submitClaim('${ticketId}')">Claim &amp; View Ticket</button>
     </div>
   `;
-
-  container.querySelectorAll('input').forEach(input => {
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') submitClaim(ticketId);
-    });
+  document.getElementById('claim-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitClaim(ticketId);
   });
 }
 
 async function submitClaim(id) {
-  const first = document.getElementById('claim-first').value.trim();
-  const lastInitial = (document.getElementById('claim-last-initial').value.trim() || '').toUpperCase() || null;
+  const name = document.getElementById('claim-name').value.trim();
   const msgEl = document.getElementById('claim-msg');
-  if (!first) { showMsg(msgEl, 'First name is required.', 'error'); return; }
-  const result = await API.claimTicket(id, first, lastInitial);
+  if (!name) { showMsg(msgEl, 'Name is required.', 'error'); return; }
+  const result = await API.claimTicket(id, name);
   if (result.success) {
     const data = await API.getTicket(id);
-    renderFullTicket(document.getElementById('ticket-view'), data.ticket);
+    renderFullTicket(document.getElementById('ticket-view'), data.ticket, false);
   } else {
     showMsg(msgEl, result.error || 'Could not claim ticket.', 'error');
   }
 }
 
 async function submitVerify(id, isClaimed) {
-  const enteredFirst = document.getElementById('verify-first').value.trim().toLowerCase();
-  const enteredInitial = (document.getElementById('verify-last-initial').value.trim() || '').toUpperCase();
-
+  const entered = document.getElementById('verify-name').value.trim().toLowerCase();
+  const msgEl = document.getElementById('verify-msg');
   const data = await API.getTicket(id);
   const t = data.ticket;
 
-  const correctFirst = isClaimed ? t.claimed_first : t.person_first;
-  const correctInitial = isClaimed ? t.claimed_last_initial : t.person_last_initial;
+  // Compare against claimed_name or person_first
+  const correctName = isClaimed
+    ? (t.claimed_name || '').toLowerCase()
+    : (t.person_first || '').toLowerCase();
 
-  const firstMatch = enteredFirst === (correctFirst || '').toLowerCase();
-  const initialMatch = !correctInitial || enteredInitial === (correctInitial || '').toUpperCase();
-
-  if (firstMatch && initialMatch) {
-    renderFullTicket(document.getElementById('ticket-view'), t);
+  if (entered && correctName && (correctName.startsWith(entered) || entered.startsWith(correctName))) {
+    renderFullTicket(document.getElementById('ticket-view'), t, false);
   } else {
-    renderNotYoursTicket(document.getElementById('ticket-view'), t);
+    showMsg(msgEl, 'Name does not match. Try your first name only.', 'error');
   }
 }
 
-function renderNotYoursTicket(container, t) {
-  const dateStr = new Date(t.created_at).toLocaleDateString();
-  container.innerHTML = `
-    <div class="ticket-header">
-      <div class="ticket-id">${t.id}</div>
-      <div class="ticket-name" style="color:var(--muted); font-style:italic;">Unverified</div>
-      <div style="margin-top:6px">
-        <span class="badge ${t.violation_type}">${t.violation_type.toUpperCase()}</span>
-        &nbsp;
-        <span class="badge ${t.status}">${t.status.toUpperCase()}</span>
-      </div>
-    </div>
-    <div class="ticket-body">
-      <div class="msg" style="display:block; margin-bottom:20px; background:var(--blue-light); color:var(--blue-dark); padding:14px; border-radius:6px;">
-        We cannot provide full information because this ticket does not belong to you.
-      </div>
-      <div class="info-row"><span class="label">Date Issued</span><span>${dateStr}</span></div>
-      <div class="info-row"><span class="label">Violation</span><span><span class="badge ${t.violation_type}">${t.violation_type.toUpperCase()}</span></span></div>
-      <div class="info-row"><span class="label">Location</span><span>${t.location}</span></div>
-      ${t.item_name ? `<div class="info-row"><span class="label">Item</span><span>${t.item_name}</span></div>` : ''}
-    </div>
-  `;
-}
-
-function renderFullTicket(container, t) {
-  const displayName = t.claimed_first
-    ? (t.claimed_last_initial ? `${t.claimed_first} ${t.claimed_last_initial}.` : t.claimed_first)
-    : t.person_name;
+function renderFullTicket(container, t, isIssuerView) {
+  const displayName = t.claimed_name || t.person_name;
   const dateStr = new Date(t.created_at).toLocaleString();
-  const isOwner = !window.location.search.includes('view=public');
+  const penalInfo = t.penal_code ? PENAL_CODES.find(p => p.code === t.penal_code) : null;
 
-  // Appeal thread rendering
+  // Extra photos
+  let extraPhotosHtml = '';
+  if (t.extra_photos) {
+    try {
+      const extras = JSON.parse(t.extra_photos);
+      extraPhotosHtml = extras.map((src, i) =>
+        `<img class="ticket-photo" src="${src}" alt="Evidence photo ${i + 2}" style="margin-top:8px;">`
+      ).join('');
+    } catch {}
+  }
+
+  // Appeal thread — clean, no duplicates
   let appealThread = '';
   if (t.appeal_note) {
-    appealThread += `
-      <div class="appeal-box" style="margin-top:16px;">
-        <strong>Appeal Filed:</strong><br>${t.appeal_note}
-        ${t.appeal_photo_base64 ? `<br><img src="${t.appeal_photo_base64}" style="width:100%;margin-top:10px;border:1px solid var(--border);" alt="Appeal photo">` : ''}
-      </div>`;
+    appealThread += `<div class="appeal-box" style="margin-top:16px;">
+      <strong style="font-size:12px;color:#a07000;text-transform:uppercase;letter-spacing:0.5px;">Appeal Filed</strong>
+      <div style="margin-top:6px;">${t.appeal_note}</div>
+      ${t.appeal_photo_base64 ? `<img src="${t.appeal_photo_base64}" style="width:100%;margin-top:8px;border:1px solid var(--border);" alt="Appeal photo">` : ''}
+    </div>`;
   }
   if (t.appeal_response) {
-    appealThread += `
-      <div style="background:#e8f5e8;border:1px solid var(--success);padding:14px;margin-top:10px;">
-        <strong>Response from issuer:</strong><br>${t.appeal_response}
-        ${t.appeal_response_photo ? `<br><img src="${t.appeal_response_photo}" style="width:100%;margin-top:10px;border:1px solid var(--border);" alt="Response photo">` : ''}
-      </div>`;
-  }
-  if (t.appeal_declined) {
-    appealThread += `<div class="msg error" style="display:block;margin-top:10px;">Appeal declined. Points remain.</div>`;
+    appealThread += `<div style="background:#e8f5e8;border:1px solid var(--success);padding:14px;margin-top:8px;">
+      <strong style="font-size:12px;color:var(--success);text-transform:uppercase;letter-spacing:0.5px;">Response from Issuer</strong>
+      <div style="margin-top:6px;">${t.appeal_response}</div>
+      ${t.appeal_response_photo ? `<img src="${t.appeal_response_photo}" style="width:100%;margin-top:8px;border:1px solid var(--border);" alt="Response photo">` : ''}
+    </div>`;
   }
 
-  // What the ticket-holder sees for appeal actions
-  let appealSection = '';
+  // Status message — single, non-duplicating
+  let statusMsg = '';
   if (t.status === 'resolved') {
-    // nothing — resolved message shown below
+    statusMsg = '<div class="msg ok" style="display:block;margin-top:16px;">This ticket has been resolved.</div>';
   } else if (t.appeal_declined) {
-    appealSection = `<div class="msg error" style="display:block;margin-top:16px;">Your appeal has been declined. Points remain.</div>`;
+    statusMsg = '<div class="msg error" style="display:block;margin-top:16px;">Appeal declined — points remain.</div>';
   } else if (t.appeal_response_locked || t.status === 'locked') {
-    appealSection = `<div class="msg" style="display:block;margin-top:16px;background:var(--blue-light);color:var(--blue-dark);padding:14px;">This appeal has been closed by the issuer. No further replies.</div>`;
-  } else if (!t.appeal_flagged) {
-    // No appeal yet — show form
-    appealSection = `
-      <hr class="divider">
-      <h2>File an Appeal</h2>
-      <div id="appeal-msg"></div>
-      <div class="field-group">
-        <label for="appeal-note">Explanation <span class="req">*</span></label>
-        <textarea id="appeal-note" placeholder="Explain your situation..."></textarea>
-      </div>
-      <div class="field-group">
-        <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
-        <input type="file" id="appeal-photo" accept="image/*" capture="environment">
-      </div>
-      <div class="field-group" style="display:flex; align-items:flex-start; gap:10px; margin-bottom:16px;">
-        <input type="checkbox" id="appeal-confirm" style="margin-top:3px; width:auto; flex-shrink:0;">
-        <label for="appeal-confirm" style="font-weight:400; font-size:13px; margin-bottom:0; cursor:pointer;">
-          I confirm that this citation was issued to me and that the information I am providing is accurate.
-        </label>
-      </div>
-      <button onclick="submitAppeal('${t.id}')">Submit Appeal</button>`;
-  } else if (t.appeal_flagged && t.appeal_response && !t.appeal_response_locked) {
-    // Issuer responded and left it open — allow one rebuttal
-    appealSection = `
-      <hr class="divider">
-      <h2>Reply to Response</h2>
-      <div id="appeal-msg"></div>
-      <div class="field-group">
-        <label for="appeal-note">Your Reply <span class="req">*</span></label>
-        <textarea id="appeal-note" placeholder="Reply to the issuer's response..."></textarea>
-      </div>
-      <div class="field-group">
-        <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
-        <input type="file" id="appeal-photo" accept="image/*" capture="environment">
-      </div>
-      <button onclick="submitAppeal('${t.id}')">Send Reply</button>`;
-  } else if (t.appeal_flagged && !t.appeal_response) {
-    appealSection = `<div class="appeal-box" style="margin-top:16px;">Your appeal has been submitted and is under review.</div>`;
+    statusMsg = '<div class="msg" style="display:block;margin-top:16px;background:var(--blue-light);color:var(--blue-dark);padding:14px;">This appeal thread has been closed.</div>';
   }
+
+  // Appeal action section (recipient only)
+  let appealSection = '';
+  if (!isIssuerView && t.status !== 'resolved' && !t.appeal_declined && !t.appeal_response_locked && t.status !== 'locked') {
+    if (!t.appeal_flagged) {
+      appealSection = `
+        <hr class="divider">
+        <h2>File an Appeal</h2>
+        <div id="appeal-msg"></div>
+        <div class="field-group">
+          <label for="appeal-note">Explanation <span class="req">*</span></label>
+          <textarea id="appeal-note" placeholder="Explain your situation..."></textarea>
+        </div>
+        <div class="field-group">
+          <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
+          <input type="file" id="appeal-photo" accept="image/*" capture="environment">
+        </div>
+        <div class="field-group" style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;">
+          <input type="checkbox" id="appeal-confirm" style="margin-top:3px;width:auto;flex-shrink:0;">
+          <label for="appeal-confirm" style="font-weight:400;font-size:13px;margin-bottom:0;cursor:pointer;">
+            I confirm this citation was issued to me and my information is accurate.
+          </label>
+        </div>
+        <button onclick="submitAppeal('${t.id}')">Submit Appeal</button>`;
+    } else if (t.appeal_flagged && t.appeal_response) {
+      appealSection = `
+        <hr class="divider">
+        <h2>Reply to Response</h2>
+        <div id="appeal-msg"></div>
+        <div class="field-group">
+          <label for="appeal-note">Your Reply <span class="req">*</span></label>
+          <textarea id="appeal-note" placeholder="Reply to the issuer's response..."></textarea>
+        </div>
+        <div class="field-group">
+          <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
+          <input type="file" id="appeal-photo" accept="image/*" capture="environment">
+        </div>
+        <button onclick="submitAppeal('${t.id}')">Send Reply</button>`;
+    } else if (t.appeal_flagged && !t.appeal_response) {
+      appealSection = `<div class="appeal-box" style="margin-top:16px;">Your appeal has been submitted and is under review.</div>`;
+    }
+  }
+
+  // Activity log
+  const log = [];
+  log.push({ time: t.created_at, msg: 'Ticket issued' });
+  if (t.appeal_flagged && t.appeal_note) log.push({ time: null, msg: 'Appeal filed by recipient' });
+  if (t.appeal_response) log.push({ time: null, msg: 'Response sent by issuer' });
+  if (t.appeal_declined) log.push({ time: null, msg: 'Appeal declined by issuer' });
+  if (t.appeal_response_locked) log.push({ time: null, msg: 'Appeal thread locked' });
+  if (t.status === 'resolved') log.push({ time: null, msg: 'Ticket resolved' });
+
+  const logHtml = `
+    <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:14px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;">Activity Log</div>
+      ${log.map(entry => `
+        <div style="display:flex;gap:10px;margin-bottom:6px;font-size:12px;">
+          <span style="color:var(--muted);min-width:8px;">•</span>
+          <span>${entry.msg}${entry.time ? ` — <span style="color:var(--muted)">${new Date(entry.time).toLocaleString()}</span>` : ''}</span>
+        </div>`).join('')}
+    </div>`;
+
+  const vtInfo = VIOLATION_TYPES[t.violation_type];
 
   container.innerHTML = `
     <div class="ticket-header">
       <div class="ticket-id">${t.id}</div>
       <div class="ticket-name">${displayName}</div>
-      <div style="margin-top:6px">
-        <span class="badge ${t.violation_type}">${t.violation_type.toUpperCase()}</span>
+      <div style="margin-top:6px;">
+        <span class="badge ${t.violation_type}">${(vtInfo?.label || t.violation_type).toUpperCase()}</span>
         &nbsp;
-        <span class="badge ${t.status}">${t.status.toUpperCase()}</span>
+        <span class="badge ${t.appeal_declined ? 'severe' : t.status}">${t.appeal_declined ? 'DECLINED' : t.status.toUpperCase()}</span>
       </div>
     </div>
     <div class="ticket-body">
       <img class="ticket-photo" src="${t.photo_base64}" alt="Violation photo">
-      <div class="row" style="align-items:flex-start; margin-bottom:16px">
+      ${extraPhotosHtml}
+      <div class="row" style="align-items:flex-start;margin-top:14px;margin-bottom:16px;">
         <div>
           <div class="info-row"><span class="label">Date Issued</span><span>${dateStr}</span></div>
           <div class="info-row"><span class="label">Location</span><span>${t.location}</span></div>
           ${t.item_name ? `<div class="info-row"><span class="label">Item</span><span>${t.item_name}</span></div>` : ''}
           ${t.product_number ? `<div class="info-row"><span class="label">Product #</span><span>${t.product_number}</span></div>` : ''}
           ${t.serial_number ? `<div class="info-row"><span class="label">Serial #</span><span>${t.serial_number}</span></div>` : ''}
+          ${penalInfo ? `<div class="info-row"><span class="label">Penal Code</span><span>${penalInfo.code} — ${penalInfo.label}</span></div>` : ''}
         </div>
-        <div style="text-align:right">
+        <div style="text-align:right;">
           <div class="points-big">${t.points}</div>
           <div class="points-label">Point${t.points !== 1 ? 's' : ''}</div>
         </div>
@@ -517,15 +584,14 @@ function renderFullTicket(container, t) {
 
       ${t.description ? `
         <div style="background:var(--blue-light);border-left:4px solid var(--blue);padding:12px 14px;margin-bottom:16px;">
-          <strong style="font-size:13px;color:var(--blue-dark);text-transform:uppercase;letter-spacing:0.5px;">Violation Details</strong>
-          <div style="margin-top:6px;font-size:14px;white-space:pre-wrap;">${t.description}</div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--blue-dark);margin-bottom:6px;">Violation Details</div>
+          <div style="font-size:14px;white-space:pre-wrap;">${t.description}</div>
         </div>` : ''}
 
       ${appealThread}
+      ${statusMsg}
       ${appealSection}
-
-      ${t.status === 'resolved' ? '<div class="msg ok" style="display:block;margin-top:16px">This ticket has been resolved.</div>' : ''}
-      ${t.status === 'locked' ? '<div class="msg" style="display:block;margin-top:16px;background:var(--blue-light);color:var(--blue-dark);padding:14px;">This ticket has been locked.</div>' : ''}
+      ${logHtml}
     </div>
   `;
 }
@@ -537,22 +603,19 @@ async function submitAppeal(id) {
   const msgEl = document.getElementById('appeal-msg');
 
   if (!note) { showMsg(msgEl, 'Please enter an explanation.', 'error'); return; }
-  // Confirm checkbox only exists on the initial appeal form, not the reply form
   if (confirmEl && !confirmEl.checked) {
     showMsg(msgEl, 'You must confirm this citation was issued to you.', 'error');
     return;
   }
 
   let photoBase64 = null;
-  const photoFile = document.getElementById('appeal-photo') ? document.getElementById('appeal-photo').files[0] : null;
-  if (photoFile) {
-    try { photoBase64 = await compressImage(photoFile); } catch { photoBase64 = null; }
-  }
+  const photoFile = document.getElementById('appeal-photo')?.files[0];
+  if (photoFile) { try { photoBase64 = await compressImage(photoFile); } catch {} }
 
   const submitBtn = document.querySelector(`[onclick="submitAppeal('${id}')"]`);
   if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
 
-  const result = await API.appeal(id, note, photoBase64, true);
+  const result = await API.appeal(id, note, photoBase64);
   if (result.success) {
     showMsg(msgEl, 'Submitted successfully.', 'ok');
     if (noteEl) noteEl.disabled = true;
@@ -560,15 +623,14 @@ async function submitAppeal(id) {
     if (photoInput) photoInput.disabled = true;
     if (confirmEl) confirmEl.disabled = true;
     if (submitBtn) submitBtn.disabled = true;
-    // Refresh ticket view after short delay
     setTimeout(() => {
       API.getTicket(id).then(data => {
-        if (data && data.ticket) renderFullTicket(document.getElementById('ticket-view'), data.ticket);
+        if (data?.ticket) renderFullTicket(document.getElementById('ticket-view'), data.ticket, false);
       });
-    }, 1200);
+    }, 1000);
   } else {
     showMsg(msgEl, result.error || 'Failed to submit.', 'error');
-    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Appeal'; }
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit'; }
   }
 }
 
@@ -593,15 +655,14 @@ if (document.getElementById('dashboard')) {
     const rest = tickets.filter(t => !t.appeal_flagged || t.status === 'resolved');
     const sorted = [...flagged, ...rest];
 
-    // Store all tickets in cache so openAppealModal can look them up by ID
     tickets.forEach(t => { _ticketCache[t.id] = t; });
 
     ticketsEl.innerHTML = sorted.length === 0
-      ? '<tr><td colspan="6" style="color:var(--muted)">No tickets issued yet.</td></tr>'
+      ? '<tr><td colspan="7" style="color:var(--muted)">No tickets issued yet.</td></tr>'
       : sorted.map(t => {
           const displayName = t.is_unknown
-            ? (t.claimed_first
-                ? `${t.claimed_first}${t.claimed_last_initial ? ' ' + t.claimed_last_initial + '.' : ''} <em style="color:var(--muted);font-size:11px">(claimed)</em>`
+            ? (t.claimed_name
+                ? `${t.claimed_name} <em style="color:var(--muted);font-size:11px">(claimed)</em>`
                 : '<em style="color:var(--muted)">Unknown</em>')
             : t.person_name;
 
@@ -616,20 +677,25 @@ if (document.getElementById('dashboard')) {
           else if (hasReply) { statusLabel = 'REPLY'; statusClass = 'flagged'; }
           else { statusLabel = t.status.toUpperCase(); statusClass = t.status; }
 
-          const hasAnyAppeal = t.appeal_flagged;
+          const vtInfo = VIOLATION_TYPES[t.violation_type];
+          const vtLabel = vtInfo?.label || t.violation_type;
+
+          const viewAsBtn = `<a href="ticket.html?id=${t.id}&bypass=1" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:underline;">View as Recipient</a>`;
+
           const actionBtn = t.status === 'resolved'
-            ? '—'
-            : hasAnyAppeal
+            ? viewAsBtn
+            : t.appeal_flagged
               ? `<button style="padding:4px 12px;font-size:12px;background:var(--blue)" onclick="openAppealModal('${t.id}')">View Appeal</button>`
               : `<button class="success" style="padding:4px 10px;font-size:12px" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
 
           return `<tr>
-            <td><a href="ticket.html?id=${t.id}">${t.id}</a></td>
+            <td><a href="ticket.html?id=${t.id}&bypass=1">${t.id}</a></td>
             <td>${displayName}</td>
-            <td><span class="badge ${t.violation_type}">${t.violation_type}</span></td>
+            <td><span class="badge ${t.violation_type}">${vtLabel}</span></td>
             <td>${t.points} pt${t.points !== 1 ? 's' : ''}</td>
             <td><span class="badge ${statusClass}">${statusLabel}</span></td>
-            <td>${actionBtn}</td>
+            <td style="font-size:12px;color:var(--muted)">${t.penal_code || '—'}</td>
+            <td style="white-space:nowrap;">${actionBtn}${t.status !== 'resolved' ? `<br>${viewAsBtn}` : ''}</td>
           </tr>`;
         }).join('');
   });
@@ -649,11 +715,7 @@ async function declineAppeal(id) {
 }
 
 async function lockThread(id) {
-  const res = await fetch('/api/appeal-lock', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id })
-  });
+  const res = await fetch('/api/appeal-lock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
   const data = await res.json();
   if (data.success) location.reload();
   else alert('Failed to lock thread.');
@@ -665,12 +727,10 @@ function openAppealModal(id) {
   const existing = document.getElementById('appeal-modal');
   if (existing) existing.remove();
 
-  const needsResponse = t.appeal_flagged && !t.appeal_response && !t.appeal_declined && t.status !== 'resolved';
-  const canRespond = t.appeal_flagged && !t.appeal_declined && t.status !== 'resolved';
+  const canRespond = t.appeal_flagged && t.status !== 'resolved';
   const canLock = t.appeal_response && !t.appeal_response_locked && t.status !== 'locked' && t.status !== 'resolved';
   const canDecline = !t.appeal_declined && t.status !== 'resolved';
 
-  // Build thread HTML
   let thread = '';
   if (t.appeal_note) {
     thread += `<div style="background:#fff8e6;border:1px solid var(--warn);padding:12px;margin-bottom:10px;">
@@ -681,7 +741,7 @@ function openAppealModal(id) {
   }
   if (t.appeal_response) {
     thread += `<div style="background:#e8f5e8;border:1px solid var(--success);padding:12px;margin-bottom:10px;">
-      <div style="font-size:11px;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Your Response ${t.appeal_response_locked ? '· <span style="color:var(--muted)">Thread Locked</span>' : '· <span style="color:var(--muted)">Awaiting Reply</span>'}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Your Response · ${t.appeal_response_locked ? '<span style="color:var(--muted)">Thread Locked</span>' : '<span style="color:var(--muted)">Awaiting Reply</span>'}</div>
       <div style="font-size:14px;">${t.appeal_response}</div>
       ${t.appeal_response_photo ? `<img src="${t.appeal_response_photo}" style="width:100%;max-height:200px;object-fit:cover;margin-top:8px;border:1px solid var(--border);">` : ''}
     </div>`;
@@ -690,10 +750,9 @@ function openAppealModal(id) {
     thread += `<div style="background:#fde8e8;border:1px solid var(--accent);padding:10px;margin-bottom:10px;font-size:13px;font-weight:700;color:var(--accent);">✗ Appeal Declined — Points Remain</div>`;
   }
 
-  // Respond form (shown if canRespond)
   const respondForm = canRespond ? `
-    <div id="respond-section" style="border-top:2px solid var(--border);margin-top:16px;padding-top:16px;">
-      <div style="font-size:13px;font-weight:700;color:var(--blue-dark);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Send a Response</div>
+    <div style="border-top:2px solid var(--border);margin-top:16px;padding-top:16px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--blue-dark);margin-bottom:10px;">Send a Response</div>
       <div id="respond-msg"></div>
       <div class="field-group">
         <label for="modal-respond-text">Message <span class="req">*</span></label>
@@ -709,17 +768,12 @@ function openAppealModal(id) {
       </div>
     </div>` : '';
 
-  // Action buttons at bottom
   let actionBtns = '';
   if (t.status !== 'resolved') {
-    actionBtns += `<button class="success" style="padding:8px 16px;font-size:13px;" onclick="resolveTicket('${t.id}', false); document.getElementById('appeal-modal').remove();">Resolve</button>`;
-    actionBtns += ` <button class="secondary" style="padding:8px 16px;font-size:13px;" onclick="resolveTicket('${t.id}', true); document.getElementById('appeal-modal').remove();">Dismiss (Remove Points)</button>`;
-    if (canDecline) {
-      actionBtns += ` <button class="danger" style="padding:8px 16px;font-size:13px;" onclick="declineAppeal('${t.id}')">Decline Appeal</button>`;
-    }
-    if (canLock) {
-      actionBtns += ` <button style="background:#333;padding:8px 16px;font-size:13px;" onclick="lockThread('${t.id}')">Lock Thread</button>`;
-    }
+    actionBtns += `<button class="success" style="padding:8px 16px;font-size:13px;" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
+    actionBtns += ` <button class="secondary" style="padding:8px 16px;font-size:13px;" onclick="resolveTicket('${t.id}', true)">Dismiss (Remove Points)</button>`;
+    if (canDecline) actionBtns += ` <button class="danger" style="padding:8px 16px;font-size:13px;" onclick="declineAppeal('${t.id}')">Decline Appeal</button>`;
+    if (canLock) actionBtns += ` <button style="background:#333;padding:8px 16px;font-size:13px;" onclick="lockThread('${t.id}')">Lock Thread</button>`;
   }
 
   const modal = document.createElement('div');
@@ -739,8 +793,7 @@ function openAppealModal(id) {
         ${respondForm}
         ${actionBtns ? `<div style="border-top:2px solid var(--border);margin-top:18px;padding-top:16px;display:flex;gap:8px;flex-wrap:wrap;">${actionBtns}</div>` : ''}
       </div>
-    </div>
-  `;
+    </div>`;
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
   document.body.appendChild(modal);
 }
@@ -748,25 +801,15 @@ function openAppealModal(id) {
 async function submitModalResponse(id, lock) {
   const text = document.getElementById('modal-respond-text').value.trim();
   const msgEl = document.getElementById('respond-msg');
-  if (!text) {
-    msgEl.className = 'msg error'; msgEl.textContent = 'Response text is required.'; msgEl.style.display = 'block';
-    return;
-  }
+  if (!text) { msgEl.className = 'msg error'; msgEl.textContent = 'Response text is required.'; msgEl.style.display = 'block'; return; }
   let photoBase64 = null;
   const photoFile = document.getElementById('modal-respond-photo').files[0];
-  if (photoFile) { try { photoBase64 = await compressImage(photoFile); } catch { photoBase64 = null; } }
-
+  if (photoFile) { try { photoBase64 = await compressImage(photoFile); } catch {} }
   const btns = document.querySelectorAll('#appeal-modal button');
   btns.forEach(b => b.disabled = true);
-
   const result = await API.respondToAppeal(id, text, lock, photoBase64);
-  if (result.success) {
-    document.getElementById('appeal-modal').remove();
-    location.reload();
-  } else {
-    msgEl.className = 'msg error'; msgEl.textContent = result.error || 'Failed to send.'; msgEl.style.display = 'block';
-    btns.forEach(b => b.disabled = false);
-  }
+  if (result.success) { document.getElementById('appeal-modal').remove(); location.reload(); }
+  else { msgEl.className = 'msg error'; msgEl.textContent = result.error || 'Failed to send.'; msgEl.style.display = 'block'; btns.forEach(b => b.disabled = false); }
 }
 
 // ── PRINT VIEW ───────────────────────────────────────────────────────────────
@@ -788,29 +831,23 @@ if (document.getElementById('print-view')) {
     const dateStr = new Date(t.created_at).toLocaleString();
 
     document.getElementById('print-view').innerHTML = `
-      <div style="width:80mm; margin:0 auto; font-size:11px; font-family:monospace;">
-        <div style="text-align:center; font-size:16px; font-weight:bold; letter-spacing:3px; border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:10px;">
-          14-T CITATION
-        </div>
+      <div style="width:80mm;margin:0 auto;font-size:11px;font-family:monospace;">
+        <div style="text-align:center;font-size:16px;font-weight:bold;letter-spacing:3px;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px;">14-T CITATION</div>
         <div style="margin-bottom:4px;"><strong>NAME:</strong> ${t.person_name}</div>
         <div style="margin-bottom:4px;"><strong>LOCATION:</strong> ${t.location}</div>
         ${t.item_name ? `<div style="margin-bottom:4px;"><strong>ITEM:</strong> ${t.item_name}</div>` : ''}
         <div style="margin-bottom:4px;"><strong>DATE:</strong> ${dateStr}</div>
-        <div style="border-top:1px solid #000; margin-top:10px; padding-top:10px; text-align:center;">
+        <div style="border-top:1px solid #000;margin-top:10px;padding-top:10px;text-align:center;">
           <div id="qr-code" style="display:inline-block;"></div>
-          <div style="font-size:9px; margin-top:6px; word-break:break-all;">${url}</div>
-          <div style="margin-top:6px; font-size:10px; font-style:italic;">Scan to view your citation</div>
+          <div style="font-size:9px;margin-top:6px;word-break:break-all;">${url}</div>
+          <div style="margin-top:6px;font-size:10px;font-style:italic;">Scan to view your citation</div>
         </div>
-      </div>
-    `;
+      </div>`;
 
     const script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
     script.onload = () => {
-      new QRCode(document.getElementById('qr-code'), {
-        text: url, width: 160, height: 160,
-        colorDark: '#000000', colorLight: '#ffffff'
-      });
+      new QRCode(document.getElementById('qr-code'), { text: url, width: 160, height: 160, colorDark: '#000000', colorLight: '#ffffff' });
       setTimeout(() => window.print(), 800);
     };
     document.head.appendChild(script);
