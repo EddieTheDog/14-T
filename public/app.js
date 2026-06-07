@@ -45,12 +45,11 @@ const CATEGORY_LABELS = {
 
 // ── VIOLATION TYPES ──────────────────────────────────────────────────────────
 const VIOLATION_TYPES = {
-  notice:   { label: 'Notice',          points: 0, desc: '0 pts — Informational only' },
-  warning:  { label: 'Warning',         points: 0, desc: '0 pts — Warning only' },
-  removal:  { label: 'Removal Notice',  points: 0, desc: '0 pts — Must remove item or face escalation' },
-  minor:    { label: 'Minor',           points: 1, desc: '1 pt' },
-  major:    { label: 'Major',           points: 2, desc: '2 pts' },
-  severe:   { label: 'Severe',          points: 3, desc: '3 pts' },
+  notice:   { label: 'Notice',         points: 0, desc: '0 pts — Informational only' },
+  warning:  { label: 'Warning',        points: 0, desc: '0 pts — Warning only' },
+  minor:    { label: 'Minor',          points: 1, desc: '1 pt' },
+  major:    { label: 'Major',          points: 2, desc: '2 pts' },
+  severe:   { label: 'Severe',         points: 3, desc: '3 pts' },
 };
 
 const API = {
@@ -254,6 +253,22 @@ if (document.getElementById('new-ticket-form')) {
     });
   }
 
+  // ── Removal notice toggle ────────────────────────────────────────────────
+  const removalCheck = document.getElementById('removal_notice');
+  const removalFields = document.getElementById('removal-fields');
+  const removalDeadlineSelect = document.getElementById('removal_deadline');
+  const removalCustomWrap = document.getElementById('removal-custom-wrap');
+  if (removalCheck) {
+    removalCheck.addEventListener('change', () => {
+      removalFields.style.display = removalCheck.checked ? 'block' : 'none';
+    });
+  }
+  if (removalDeadlineSelect) {
+    removalDeadlineSelect.addEventListener('change', () => {
+      removalCustomWrap.style.display = removalDeadlineSelect.value === 'custom' ? 'block' : 'none';
+    });
+  }
+
   // ── Location dropdown ────────────────────────────────────────────────────
   const locationPreset = document.getElementById('location_preset');
   const locationOtherWrap = document.getElementById('location-other-wrap');
@@ -395,6 +410,19 @@ if (document.getElementById('new-ticket-form')) {
       const penalCode = penalSelect ? penalSelect.value : null;
       const descVal = document.getElementById('description')?.value.trim() || null;
 
+      // Removal notice
+      const hasRemoval = removalCheck && removalCheck.checked;
+      let removalDeadline = null;
+      if (hasRemoval) {
+        const dlVal = removalDeadlineSelect?.value;
+        if (dlVal === 'custom') {
+          removalDeadline = document.getElementById('removal_custom_date')?.value || null;
+        } else {
+          removalDeadline = dlVal || '24hr';
+        }
+      }
+      const removalNote = hasRemoval ? (document.getElementById('removal_note')?.value.trim() || null) : null;
+
       const payload = {
         id: generateId(),
         person_first: firstName || null,
@@ -411,6 +439,9 @@ if (document.getElementById('new-ticket-form')) {
         serial_number: document.getElementById('serial_number').value.trim() || null,
         photo_base64: photoBase64,
         extra_photos: extraBase64s.length ? JSON.stringify(extraBase64s) : null,
+        removal_notice: hasRemoval ? 1 : 0,
+        removal_deadline: removalDeadline,
+        removal_note: removalNote,
         created_at: new Date().toISOString()
       };
 
@@ -550,6 +581,23 @@ async function submitVerify(id, isClaimed, hasLastInitial) {
   }
 }
 
+function formatDeadline(deadline, issuedAt) {
+  if (!deadline) return '';
+  const issued = new Date(issuedAt);
+  const deadlineMap = {
+    'immediately': 'immediately',
+    '24hr': 'within 24 hours',
+    '48hr': 'within 48 hours',
+    '72hr': 'within 72 hours',
+    '1week': 'within 1 week',
+  };
+  if (deadlineMap[deadline]) return deadlineMap[deadline];
+  // Custom datetime string
+  try {
+    return `by ${new Date(deadline).toLocaleString()}`;
+  } catch { return deadline; }
+}
+
 function renderFullTicket(container, t, isIssuerView) {
   const displayName = t.claimed_name || t.person_name;
   const dateStr = new Date(t.created_at).toLocaleString();
@@ -638,6 +686,7 @@ function renderFullTicket(container, t, isIssuerView) {
   // Activity log
   const log = [];
   log.push({ time: t.created_at, msg: 'Ticket issued' });
+  if (t.removal_notice) log.push({ time: null, msg: `Removal notice attached — ${formatDeadline(t.removal_deadline, t.created_at)}` });
   if (t.appeal_flagged && t.appeal_note) log.push({ time: null, msg: 'Appeal filed by recipient' });
   if (t.appeal_response) log.push({ time: null, msg: 'Response sent by issuer' });
   if (t.appeal_declined) log.push({ time: null, msg: 'Appeal declined by issuer' });
@@ -662,6 +711,7 @@ function renderFullTicket(container, t, isIssuerView) {
       <div class="ticket-name">${displayName}</div>
       <div style="margin-top:6px;">
         <span class="badge ${t.violation_type}">${(vtInfo?.label || t.violation_type).toUpperCase()}</span>
+        ${t.removal_notice ? `&nbsp;<span class="badge removal">REMOVAL NOTICE</span>` : ''}
         &nbsp;
         <span class="badge ${t.appeal_declined ? 'severe' : t.status}">${t.appeal_declined ? 'DECLINED' : t.status.toUpperCase()}</span>
       </div>
@@ -688,6 +738,17 @@ function renderFullTicket(container, t, isIssuerView) {
         <div style="background:var(--blue-light);border-left:4px solid var(--blue);padding:12px 14px;margin-bottom:16px;">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--blue-dark);margin-bottom:6px;">Violation Details</div>
           <div style="font-size:14px;white-space:pre-wrap;">${t.description}</div>
+        </div>` : ''}
+
+      ${t.removal_notice ? `
+        <div style="background:#fff3cd;border:2px solid #e6a000;padding:14px;margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#a07000;margin-bottom:6px;">⚠ Removal Notice Attached</div>
+          <div style="font-size:14px;font-weight:600;color:#333;">
+            This item must be removed
+            ${t.removal_deadline ? ` — <strong>${formatDeadline(t.removal_deadline, t.created_at)}</strong>` : ''}.
+          </div>
+          ${t.removal_note ? `<div style="font-size:13px;color:var(--muted);margin-top:6px;">${t.removal_note}</div>` : ''}
+          <div style="font-size:12px;color:var(--accent);margin-top:8px;font-weight:600;">Failure to comply may result in relocation of the item.</div>
         </div>` : ''}
 
       ${appealThread}
@@ -854,7 +915,6 @@ function renderFilterBar() {
             <option value="">All Types</option>
             <option value="notice">Notice</option>
             <option value="warning">Warning</option>
-            <option value="removal">Removal Notice</option>
             <option value="minor">Minor</option>
             <option value="major">Major</option>
             <option value="severe">Severe</option>
