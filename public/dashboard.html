@@ -39,11 +39,69 @@
     </div>
 
     <div class="card">
-      <h2>All Citations</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+        <h2 style="margin-bottom:0;">All Citations</h2>
+        <span id="tickets-count" style="font-size:13px;color:var(--muted);"></span>
+      </div>
+
+      <!-- Filter Bar -->
+      <div style="background:var(--bg);border:1px solid var(--border);padding:14px;margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;">Filters</div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:140px;">
+            <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Sort By</label>
+            <select id="f-sort" style="font-size:13px;padding:6px 8px;border:1px solid var(--border);">
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="person">Person A–Z</option>
+              <option value="points-high">Most Points</option>
+              <option value="points-low">Fewest Points</option>
+            </select>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:140px;">
+            <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Person</label>
+            <select id="f-person" style="font-size:13px;padding:6px 8px;border:1px solid var(--border);">
+              <option value="">All People</option>
+            </select>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:140px;">
+            <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Severity</label>
+            <select id="f-severity" style="font-size:13px;padding:6px 8px;border:1px solid var(--border);">
+              <option value="">All Types</option>
+              <option value="notice">Notice</option>
+              <option value="warning">Warning</option>
+              <option value="removal">Removal Notice</option>
+              <option value="minor">Minor</option>
+              <option value="major">Major</option>
+              <option value="severe">Severe</option>
+              <option value="contest">Contested</option>
+            </select>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:160px;">
+            <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Status</label>
+            <select id="f-status" style="font-size:13px;padding:6px 8px;border:1px solid var(--border);">
+              <option value="">All Statuses</option>
+              <option value="open">Open</option>
+              <option value="appeal">Needs Response (Appeal)</option>
+              <option value="reply">Follow-up Reply</option>
+              <option value="locked">Locked</option>
+              <option value="declined">Declined</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          </div>
+
+          <button id="filter-clear" class="secondary" onclick="clearFilters()" style="display:none;padding:6px 14px;font-size:13px;align-self:flex-end;">✕ Clear Filters</button>
+        </div>
+      </div>
+
       <table>
         <thead>
           <tr>
-            <th>ID</th>
+            <th>ID / Date</th>
             <th>Name</th>
             <th>Violation</th>
             <th>Points</th>
@@ -53,7 +111,7 @@
           </tr>
         </thead>
         <tbody id="tickets-table">
-          <tr><td colspan="6" style="color:var(--muted)">Loading...</td></tr>
+          <tr><td colspan="7" style="color:var(--muted)">Loading...</td></tr>
         </tbody>
       </table>
     </div>
