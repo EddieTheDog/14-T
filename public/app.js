@@ -902,13 +902,13 @@ function renderFullTicket(container, t, isIssuerView) {
           ${t.removal_note ? `<div style="font-size:13px;color:var(--muted);margin-top:6px;">${t.removal_note}</div>` : ''}
 
           ${t.issuer_removed_at ? `
-            <div style="margin-top:10px;background:#fde8e8;border:1px solid var(--accent);padding:10px;">
-              <div style="font-size:13px;font-weight:700;color:var(--accent);">⚠ Item Has Been Relocated by Issuer</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:4px;">Relocated on ${new Date(t.issuer_removed_at).toLocaleString()}</div>
-              ${t.issuer_removed_note ? `<div style="font-size:13px;margin-top:6px;">${t.issuer_removed_note}</div>` : ''}
+            <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;">
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:8px;">Item Removed — ${new Date(t.issuer_removed_at).toLocaleString()}</div>
+              ${t.issuer_removed_photo ? `<img src="${t.issuer_removed_photo}" style="width:100%;max-height:280px;object-fit:cover;border:1px solid var(--border);display:block;margin-bottom:8px;">` : ''}
+              ${t.issuer_removed_note ? `<div style="font-size:13px;color:var(--text);">${t.issuer_removed_note}</div>` : ''}
               ${!isIssuerView ? `
-                <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--accent);font-size:13px;">
-                  To retrieve your item, call <strong><a href="tel:8185158076" style="color:var(--accent);">(818) 515-8076</a></strong> for more information.
+                <div style="margin-top:10px;font-size:13px;">
+                  To retrieve your item, call <strong><a href="tel:8185158076" style="color:var(--blue);">(818) 515-8076</a></strong>.
                 </div>` : ''}
             </div>` : `
             <div style="font-size:12px;color:var(--accent);margin-top:8px;font-weight:600;">Failure to comply may result in relocation of the item.</div>`}
@@ -939,10 +939,10 @@ function renderFullTicket(container, t, isIssuerView) {
 
           ${isIssuerView && !t.item_removed_at && !t.issuer_removed_at && t.status !== 'resolved' ? `
             <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;">
-              <button onclick="openIssuerRemoveModal('${t.id}')" style="background:#7b3f00;color:#fff;padding:8px 16px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">
-                📷 I Removed the Item — Take Photo & Close
+              <button onclick="openIssuerRemoveModal('${t.id}')" class="secondary" style="padding:8px 16px;font-size:12px;font-weight:600;">
+                Mark as Removed
               </button>
-              <div style="font-size:11px;color:var(--muted);margin-top:6px;">Deadline passed and item wasn't moved. Take a photo as proof and close the ticket.</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:6px;">Deadline passed and item was not moved. Take a photo as proof and close the ticket.</div>
             </div>` : ''}
         </div>` : ''}
 
@@ -985,7 +985,7 @@ function openIssuerRemoveModal(id) {
     <div style="background:var(--white);max-width:480px;width:100%;border-top:4px solid #7b3f00;">
       <div style="background:#7b3f00;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;">
         <div>
-          <div style="font-size:15px;font-weight:700;">📷 Mark Item as Relocated</div>
+          <div style="font-size:15px;font-weight:700;">Mark Item as Removed</div>
           <div style="font-size:12px;opacity:0.8;margin-top:2px;">Take a photo as proof and close the ticket</div>
         </div>
         <button onclick="document.getElementById('issuer-remove-modal').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:4px 10px;font-size:13px;cursor:pointer;">✕</button>
@@ -1121,15 +1121,24 @@ function renderTicketRow(t) {
   const vtLabel = vtInfo?.label || t.violation_type;
   const dateStr = new Date(t.created_at).toLocaleDateString();
   const viewAsBtn = `<a href="ticket.html?id=${t.id}&bypass=1" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:underline;display:block;margin-top:4px;">View as Recipient</a>`;
-  const actionBtn = t.status === 'resolved'
-    ? '—'
-    : t.item_removed_at
-      ? `<div style="font-size:12px;color:var(--success);font-weight:600;margin-bottom:4px;">✓ Recipient says removed</div>
-         <button onclick="verifyItemRemoved('${t.id}', true)" style="padding:3px 8px;font-size:11px;background:var(--success);color:#fff;border:none;cursor:pointer;font-family:inherit;margin-right:4px;">Confirm & Close</button>
-         <button onclick="verifyItemRemoved('${t.id}', false)" style="padding:3px 8px;font-size:11px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-family:inherit;">Not Removed</button>`
-      : t.appeal_flagged
-        ? `<button style="padding:4px 12px;font-size:12px;background:var(--blue)" onclick="openAppealModal('${t.id}')">View Appeal</button>`
-        : `<button class="success" style="padding:4px 10px;font-size:12px" onclick="showResolveModal('${t.id}', 'resolve')">Resolve</button>`;
+
+  let actionBtn = '—';
+  if (t.status !== 'resolved') {
+    if (t.item_removed_at) {
+      actionBtn = `
+        <div style="font-size:11px;color:var(--success);font-weight:600;margin-bottom:4px;">Recipient says removed</div>
+        <button onclick="verifyItemRemoved('${t.id}', true)" style="padding:3px 8px;font-size:11px;background:var(--success);color:#fff;border:none;cursor:pointer;font-family:inherit;display:block;margin-bottom:3px;width:100%;">Confirm — Close</button>
+        <button onclick="verifyItemRemoved('${t.id}', false)" style="padding:3px 8px;font-size:11px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-family:inherit;display:block;width:100%;">Item Still There</button>`;
+    } else if (t.appeal_flagged) {
+      actionBtn = `<button style="padding:4px 12px;font-size:12px;background:var(--blue)" onclick="openAppealModal('${t.id}')">View Appeal</button>`;
+    } else {
+      actionBtn = `<button class="success" style="padding:4px 10px;font-size:12px;display:block;margin-bottom:4px;" onclick="showResolveModal('${t.id}', 'resolve')">Resolve</button>`;
+      if (t.removal_notice && !t.issuer_removed_at) {
+        actionBtn += `<button class="secondary" style="padding:3px 8px;font-size:11px;display:block;" onclick="openIssuerRemoveModal('${t.id}')">Mark as Removed</button>`;
+      }
+    }
+  }
+
   return `<tr>
     <td><a href="ticket.html?id=${t.id}&bypass=1" style="font-size:12px">${t.id}</a><br><span style="font-size:11px;color:var(--muted)">${dateStr}</span></td>
     <td>${displayName}</td>
