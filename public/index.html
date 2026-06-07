@@ -69,8 +69,41 @@
           <div id="penal-desc" style="font-size:12px;color:var(--muted);margin-top:-10px;margin-bottom:16px;display:none;"></div>
         </div>
         <div class="field-group">
-          <label for="location">Location <span class="req">*</span></label>
-          <input type="text" id="location" name="location" required placeholder="e.g. Kitchen sink, Driveway, Living room">
+          <label for="location_preset">Location <span class="req">*</span></label>
+          <select id="location_preset" name="location_preset">
+            <option value="">— Select a location —</option>
+            <optgroup label="Common Areas">
+              <option>Hallway</option>
+              <option>Living Room</option>
+              <option>Kitchen</option>
+              <option>Dining Room</option>
+              <option>Laundry Room</option>
+              <option>Garage</option>
+              <option>Driveway</option>
+              <option>Front Yard</option>
+              <option>Backyard</option>
+              <option>Patio / Deck</option>
+              <option>Entryway / Foyer</option>
+              <option>Staircase</option>
+              <option>Basement</option>
+            </optgroup>
+            <optgroup label="Bedrooms">
+              <option>Primary Bedroom</option>
+              <option>Bedroom 2</option>
+              <option>Bedroom 3</option>
+              <option>Guest Room</option>
+            </optgroup>
+            <optgroup label="Bathrooms">
+              <option>Primary Bathroom</option>
+              <option>Bathroom 2</option>
+              <option>Half Bath</option>
+            </optgroup>
+            <option value="__other__">Other — I'll type it in</option>
+          </select>
+        </div>
+        <div class="field-group" id="location-other-wrap" style="display:none;">
+          <label for="location">Custom Location <span class="req">*</span></label>
+          <input type="text" id="location" name="location" placeholder="e.g. Back porch, Shed, Upstairs office">
         </div>
         <div class="field-group">
           <label for="description">What They Did Wrong <span class="req">*</span></label>
