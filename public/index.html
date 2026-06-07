@@ -53,12 +53,41 @@
           <select id="violation_type" name="violation_type" required>
             <option value="notice">Notice — 0 pts (informational)</option>
             <option value="warning">Warning — 0 pts</option>
-            <option value="removal">Removal Notice — 0 pts (must remove item)</option>
             <option value="minor">Minor — 1 pt</option>
             <option value="major">Major — 2 pts</option>
             <option value="severe">Severe — 3 pts</option>
           </select>
           <div id="points-display" style="font-size:13px;color:var(--muted);margin-top:-10px;margin-bottom:16px;"></div>
+        </div>
+
+        <!-- Removal Notice Add-on -->
+        <div style="border:1px solid var(--border);padding:14px;margin-bottom:16px;background:var(--bg);">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+            <input type="checkbox" id="removal_notice" style="width:auto;margin-bottom:0;">
+            <label for="removal_notice" style="font-weight:700;margin-bottom:0;cursor:pointer;font-size:14px;">+ Attach Removal Notice</label>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;margin-left:26px;">Item must be removed by the deadline or it will be relocated. Can be added to any violation type.</div>
+          <div id="removal-fields" style="display:none;margin-left:26px;">
+            <div class="field-group">
+              <label for="removal_deadline">Removal Deadline <span class="req">*</span></label>
+              <select id="removal_deadline" name="removal_deadline">
+                <option value="immediately">Immediately</option>
+                <option value="24hr">Within 24 hours</option>
+                <option value="48hr">Within 48 hours</option>
+                <option value="72hr">Within 72 hours</option>
+                <option value="1week">Within 1 week</option>
+                <option value="custom">Custom date/time</option>
+              </select>
+            </div>
+            <div class="field-group" id="removal-custom-wrap" style="display:none;">
+              <label for="removal_custom_date">Custom Deadline</label>
+              <input type="datetime-local" id="removal_custom_date" name="removal_custom_date">
+            </div>
+            <div class="field-group">
+              <label for="removal_note">Removal Note <span class="opt">(optional)</span></label>
+              <input type="text" id="removal_note" name="removal_note" placeholder="e.g. Move to garage, Return to owner's room">
+            </div>
+          </div>
         </div>
         <div class="field-group">
           <label for="penal_code">Penal Code <span class="opt">(optional)</span></label>
