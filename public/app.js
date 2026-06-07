@@ -1316,7 +1316,6 @@ if (document.getElementById('dashboard')) {
 }
 
 async function resolveTicket(id, dismiss) {
-  // Called directly (non-appeal) or from appeal modal — show confirm modal
   showResolveModal(id, dismiss ? 'dismiss' : 'resolve');
 }
 
@@ -1324,20 +1323,45 @@ function showResolveModal(id, defaultAction) {
   const existing = document.getElementById('resolve-modal');
   if (existing) existing.remove();
 
+  const t = _ticketCache[id];
+  const hasRemoval = t && t.removal_notice && !t.issuer_removed_at;
+
   const modal = document.createElement('div');
   modal.id = 'resolve-modal';
-  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+
+  const removalOptions = hasRemoval ? `
+    <div id="rm-impound" onclick="selectResolveAction('impound')" style="border:2px solid var(--border);padding:14px;cursor:pointer;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:16px;height:16px;border-radius:50%;border:2px solid #7b3f00;flex-shrink:0;" id="rm-dot-impound"></div>
+        <div>
+          <div style="font-weight:700;color:#7b3f00;font-size:14px;">Impounded</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px;">Item was not moved. You removed it. Take a photo as proof — points stay on record.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="rm-notmoved" onclick="selectResolveAction('notmoved')" style="border:2px solid var(--border);padding:14px;cursor:pointer;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:16px;height:16px;border-radius:50%;border:2px solid #555;flex-shrink:0;" id="rm-dot-notmoved"></div>
+        <div>
+          <div style="font-weight:700;color:#555;font-size:14px;">Item Not Moved</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px;">Deadline passed, item is still there. Close the ticket and keep points — no photo needed.</div>
+        </div>
+      </div>
+    </div>` : '';
+
   modal.innerHTML = `
-    <div style="background:var(--white);max-width:480px;width:100%;border-top:4px solid var(--blue);">
+    <div style="background:var(--white);max-width:480px;width:100%;border-top:4px solid var(--blue);margin:auto;">
       <div style="background:var(--blue);color:var(--white);padding:14px 18px;">
         <div style="font-size:16px;font-weight:700;">Close Ticket</div>
         <div style="font-size:12px;opacity:0.75;margin-top:2px;">Choose how to close this ticket</div>
       </div>
       <div style="padding:18px;display:flex;flex-direction:column;gap:12px;">
 
-        <div id="rm-resolve" onclick="selectResolveAction('resolve')" style="border:2px solid var(--border);padding:14px;cursor:pointer;transition:border-color 0.1s;">
+        <div id="rm-resolve" onclick="selectResolveAction('resolve')" style="border:2px solid var(--border);padding:14px;cursor:pointer;">
           <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--success);flex-shrink:0;display:flex;align-items:center;justify-content:center;" id="rm-dot-resolve"></div>
+            <div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--success);flex-shrink:0;" id="rm-dot-resolve"></div>
             <div>
               <div style="font-weight:700;color:var(--success);font-size:14px;">Resolve</div>
               <div style="font-size:13px;color:var(--muted);margin-top:2px;">Ticket is closed. Points stay on record. Use when the violation stands and is now handled.</div>
@@ -1347,7 +1371,7 @@ function showResolveModal(id, defaultAction) {
 
         <div id="rm-dismiss" onclick="selectResolveAction('dismiss')" style="border:2px solid var(--border);padding:14px;cursor:pointer;">
           <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--blue);flex-shrink:0;display:flex;align-items:center;justify-content:center;" id="rm-dot-dismiss"></div>
+            <div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--blue);flex-shrink:0;" id="rm-dot-dismiss"></div>
             <div>
               <div style="font-weight:700;color:var(--blue);font-size:14px;">Dismiss</div>
               <div style="font-size:13px;color:var(--muted);margin-top:2px;">Ticket is closed and points are removed. Use when the citation was a mistake or the appeal was valid.</div>
@@ -1357,13 +1381,15 @@ function showResolveModal(id, defaultAction) {
 
         <div id="rm-decline" onclick="selectResolveAction('decline')" style="border:2px solid var(--border);padding:14px;cursor:pointer;">
           <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;" id="rm-dot-decline"></div>
+            <div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--accent);flex-shrink:0;" id="rm-dot-decline"></div>
             <div>
               <div style="font-weight:700;color:var(--accent);font-size:14px;">Decline Appeal</div>
-              <div style="font-size:13px;color:var(--muted);margin-top:2px;">Appeal is rejected. Points stay, ticket remains active. Use when the appeal was invalid or insufficient.</div>
+              <div style="font-size:13px;color:var(--muted);margin-top:2px;">Appeal is rejected. Points stay, ticket remains active.</div>
             </div>
           </div>
         </div>
+
+        ${removalOptions}
 
         <div style="display:flex;gap:10px;margin-top:4px;">
           <button id="rm-confirm-btn" onclick="confirmResolveAction('${id}')" style="padding:10px 20px;font-size:14px;">Confirm</button>
@@ -1371,6 +1397,7 @@ function showResolveModal(id, defaultAction) {
         </div>
       </div>
     </div>`;
+
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
   selectResolveAction(defaultAction || 'resolve');
