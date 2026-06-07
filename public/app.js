@@ -705,13 +705,114 @@ async function submitAppeal(id) {
 
 // ── DASHBOARD ────────────────────────────────────────────────────────────────
 const _ticketCache = {};
+let _allTickets = [];
+
+function getTicketStatus(t) {
+  const needsResponse = t.appeal_flagged && !t.appeal_response && !t.appeal_declined && t.status !== 'resolved';
+  const hasReply = t.appeal_flagged && t.appeal_response && !t.appeal_response_locked && t.status !== 'resolved';
+  if (t.status === 'resolved') return { label: 'RESOLVED', cls: 'resolved', key: 'resolved' };
+  if (t.appeal_declined) return { label: 'DECLINED', cls: 'severe', key: 'declined' };
+  if (t.status === 'locked') return { label: 'LOCKED', cls: 'locked', key: 'locked' };
+  if (needsResponse) return { label: 'APPEAL', cls: 'flagged', key: 'appeal' };
+  if (hasReply) return { label: 'REPLY', cls: 'flagged', key: 'reply' };
+  return { label: 'OPEN', cls: 'open', key: 'open' };
+}
+
+function renderTicketRow(t) {
+  const displayName = t.is_unknown
+    ? (t.claimed_name ? `${t.claimed_name} <em style="color:var(--muted);font-size:11px">(claimed)</em>` : '<em style="color:var(--muted)">Unknown</em>')
+    : t.person_name;
+  const status = getTicketStatus(t);
+  const vtInfo = VIOLATION_TYPES[t.violation_type];
+  const vtLabel = vtInfo?.label || t.violation_type;
+  const dateStr = new Date(t.created_at).toLocaleDateString();
+  const viewAsBtn = `<a href="ticket.html?id=${t.id}&bypass=1" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:underline;display:block;margin-top:4px;">View as Recipient</a>`;
+  const actionBtn = t.status === 'resolved'
+    ? '—'
+    : t.appeal_flagged
+      ? `<button style="padding:4px 12px;font-size:12px;background:var(--blue)" onclick="openAppealModal('${t.id}')">View Appeal</button>`
+      : `<button class="success" style="padding:4px 10px;font-size:12px" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
+  return `<tr>
+    <td><a href="ticket.html?id=${t.id}&bypass=1" style="font-size:12px">${t.id}</a><br><span style="font-size:11px;color:var(--muted)">${dateStr}</span></td>
+    <td>${displayName}</td>
+    <td><span class="badge ${t.violation_type}">${vtLabel}</span></td>
+    <td>${t.points} pt${t.points !== 1 ? 's' : ''}</td>
+    <td><span class="badge ${status.cls}">${status.label}</span></td>
+    <td style="font-size:12px;color:var(--muted)">${t.penal_code || '—'}</td>
+    <td style="white-space:nowrap;">${actionBtn}${t.status !== 'resolved' ? viewAsBtn : ''}</td>
+  </tr>`;
+}
+
+function applyFilters() {
+  const sort     = document.getElementById('f-sort')?.value || 'newest';
+  const person   = document.getElementById('f-person')?.value || '';
+  const severity = document.getElementById('f-severity')?.value || '';
+  const status   = document.getElementById('f-status')?.value || '';
+
+  const anyActive = sort !== 'newest' || person || severity || status;
+  const clearBtn = document.getElementById('filter-clear');
+  if (clearBtn) clearBtn.style.display = anyActive ? 'inline-block' : 'none';
+
+  let tickets = [..._allTickets];
+
+  // Filter by person
+  if (person) {
+    tickets = tickets.filter(t => {
+      const name = (t.claimed_name || t.person_name || '').toLowerCase();
+      return name.includes(person.toLowerCase());
+    });
+  }
+
+  // Filter by severity/violation type
+  if (severity) tickets = tickets.filter(t => t.violation_type === severity);
+
+  // Filter by status key
+  if (status) tickets = tickets.filter(t => getTicketStatus(t).key === status);
+
+  // Sort
+  tickets.sort((a, b) => {
+    if (sort === 'newest') return new Date(b.created_at) - new Date(a.created_at);
+    if (sort === 'oldest') return new Date(a.created_at) - new Date(b.created_at);
+    if (sort === 'person') return (a.person_name || '').localeCompare(b.person_name || '');
+    if (sort === 'points-high') return b.points - a.points;
+    if (sort === 'points-low') return a.points - b.points;
+    return 0;
+  });
+
+  // Status-based priority: appeals/replies always float to top regardless of sort
+  if (sort === 'newest' || sort === 'oldest') {
+    const urgent = tickets.filter(t => ['appeal','reply'].includes(getTicketStatus(t).key));
+    const rest = tickets.filter(t => !['appeal','reply'].includes(getTicketStatus(t).key));
+    tickets = [...urgent, ...rest];
+  }
+
+  const ticketsEl = document.getElementById('tickets-table');
+  const countEl = document.getElementById('tickets-count');
+  if (countEl) countEl.textContent = `${tickets.length} ticket${tickets.length !== 1 ? 's' : ''}`;
+
+  ticketsEl.innerHTML = tickets.length === 0
+    ? '<tr><td colspan="7" style="color:var(--muted);padding:16px;">No tickets match your filters.</td></tr>'
+    : tickets.map(renderTicketRow).join('');
+}
+
+function clearFilters() {
+  const ids = ['f-sort','f-person','f-severity','f-status'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = id === 'f-sort' ? 'newest' : '';
+  });
+  applyFilters();
+}
 
 if (document.getElementById('dashboard')) {
   API.getAllTickets().then(data => {
     if (!data || data.error) return;
-    const tickets = data.tickets || [];
+    _allTickets = data.tickets || [];
     const people = data.people || [];
 
+    _allTickets.forEach(t => { _ticketCache[t.id] = t; });
+
+    // Leaderboard
     const leaderboardEl = document.getElementById('leaderboard');
     leaderboardEl.innerHTML = people.length === 0
       ? '<tr><td colspan="2" style="color:var(--muted)">No records yet.</td></tr>'
@@ -719,54 +820,26 @@ if (document.getElementById('dashboard')) {
           .map((p, i) => `<tr><td><span class="leaderboard-rank">#${i + 1}</span> ${p.name}</td><td><strong style="color:var(--accent)">${p.total_points}</strong> pts</td></tr>`)
           .join('');
 
-    const ticketsEl = document.getElementById('tickets-table');
-    const flagged = tickets.filter(t => t.appeal_flagged && t.status !== 'resolved');
-    const rest = tickets.filter(t => !t.appeal_flagged || t.status === 'resolved');
-    const sorted = [...flagged, ...rest];
+    // Populate person filter dropdown
+    const personFilter = document.getElementById('f-person');
+    if (personFilter) {
+      const names = [...new Set(_allTickets.map(t => t.claimed_name || t.person_name).filter(n => n && n !== 'Unknown'))].sort();
+      names.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        personFilter.appendChild(opt);
+      });
+    }
 
-    tickets.forEach(t => { _ticketCache[t.id] = t; });
+    // Wire up filter controls
+    ['f-sort','f-person','f-severity','f-status'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', applyFilters);
+    });
 
-    ticketsEl.innerHTML = sorted.length === 0
-      ? '<tr><td colspan="7" style="color:var(--muted)">No tickets issued yet.</td></tr>'
-      : sorted.map(t => {
-          const displayName = t.is_unknown
-            ? (t.claimed_name
-                ? `${t.claimed_name} <em style="color:var(--muted);font-size:11px">(claimed)</em>`
-                : '<em style="color:var(--muted)">Unknown</em>')
-            : t.person_name;
-
-          const needsResponse = t.appeal_flagged && !t.appeal_response && !t.appeal_declined && t.status !== 'resolved';
-          const hasReply = t.appeal_flagged && t.appeal_response && !t.appeal_response_locked && t.status !== 'resolved';
-
-          let statusLabel, statusClass;
-          if (t.status === 'resolved') { statusLabel = 'RESOLVED'; statusClass = 'resolved'; }
-          else if (t.appeal_declined) { statusLabel = 'DECLINED'; statusClass = 'severe'; }
-          else if (t.status === 'locked') { statusLabel = 'LOCKED'; statusClass = 'locked'; }
-          else if (needsResponse) { statusLabel = 'APPEAL'; statusClass = 'flagged'; }
-          else if (hasReply) { statusLabel = 'REPLY'; statusClass = 'flagged'; }
-          else { statusLabel = t.status.toUpperCase(); statusClass = t.status; }
-
-          const vtInfo = VIOLATION_TYPES[t.violation_type];
-          const vtLabel = vtInfo?.label || t.violation_type;
-
-          const viewAsBtn = `<a href="ticket.html?id=${t.id}&bypass=1" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:underline;">View as Recipient</a>`;
-
-          const actionBtn = t.status === 'resolved'
-            ? viewAsBtn
-            : t.appeal_flagged
-              ? `<button style="padding:4px 12px;font-size:12px;background:var(--blue)" onclick="openAppealModal('${t.id}')">View Appeal</button>`
-              : `<button class="success" style="padding:4px 10px;font-size:12px" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
-
-          return `<tr>
-            <td><a href="ticket.html?id=${t.id}&bypass=1">${t.id}</a></td>
-            <td>${displayName}</td>
-            <td><span class="badge ${t.violation_type}">${vtLabel}</span></td>
-            <td>${t.points} pt${t.points !== 1 ? 's' : ''}</td>
-            <td><span class="badge ${statusClass}">${statusLabel}</span></td>
-            <td style="font-size:12px;color:var(--muted)">${t.penal_code || '—'}</td>
-            <td style="white-space:nowrap;">${actionBtn}${t.status !== 'resolved' ? `<br>${viewAsBtn}` : ''}</td>
-          </tr>`;
-        }).join('');
+    // Initial render
+    applyFilters();
   });
 }
 
