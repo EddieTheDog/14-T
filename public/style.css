@@ -207,6 +207,9 @@ button.success {
 }
 
 .badge.warning { background: var(--warn); color: var(--white); }
+.badge.notice { background: #e0e0e0; color: #333; }
+.badge.removal { background: #7b3f00; color: var(--white); }
+.badge.contest { background: #6a0dad; color: var(--white); }
 .badge.minor { background: var(--blue-light); color: var(--blue-dark); }
 .badge.major { background: var(--blue); color: var(--white); }
 .badge.severe { background: var(--accent); color: var(--white); }
