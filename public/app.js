@@ -373,22 +373,27 @@ if (document.getElementById('new-ticket-form')) {
         btn.style.color = '#fff';
 
         // Fill violation type
-        if (violationSelect) { violationSelect.value = preset.violation_type; violationSelect.dispatchEvent(new Event('change')); }
+        const vSel = document.getElementById('violation_type');
+        if (vSel) { vSel.value = preset.violation_type; vSel.dispatchEvent(new Event('change')); }
 
         // Fill penal code
-        if (penalSelect) { penalSelect.value = preset.penal_code; penalSelect.dispatchEvent(new Event('change')); }
+        const pSel = document.getElementById('penal_code');
+        if (pSel) { pSel.value = preset.penal_code; pSel.dispatchEvent(new Event('change')); }
 
-        // Fill description (override autofill)
+        // Fill description
         const descEl = document.getElementById('description');
         if (descEl) { descEl.value = preset.description; descEl.dataset.autofilled = '0'; }
 
         // Set removal notice
-        if (removalCheck) {
-          removalCheck.checked = !!preset.removal_notice;
-          removalCheck.dispatchEvent(new Event('change'));
-          if (preset.removal_notice && preset.removal_deadline && removalDeadlineSelect) {
-            removalDeadlineSelect.value = preset.removal_deadline;
-            removalDeadlineSelect.dispatchEvent(new Event('change'));
+        const rCheck = document.getElementById('removal_notice');
+        const rFields = document.getElementById('removal-fields');
+        const rDeadline = document.getElementById('removal_deadline');
+        if (rCheck) {
+          rCheck.checked = !!preset.removal_notice;
+          if (rFields) rFields.style.display = rCheck.checked ? 'block' : 'none';
+          if (preset.removal_notice && preset.removal_deadline && rDeadline) {
+            rDeadline.value = preset.removal_deadline;
+            rDeadline.dispatchEvent(new Event('change'));
           }
         }
 
@@ -941,6 +946,8 @@ async function verifyItemRemoved(id, confirmed) {
   if (result.success) location.reload();
   else alert(result.error || 'Failed to update.');
 }
+
+async function submitAppeal(id) {
   const noteEl = document.getElementById('appeal-note');
   const note = noteEl ? noteEl.value.trim() : '';
   const confirmEl = document.getElementById('appeal-confirm');
