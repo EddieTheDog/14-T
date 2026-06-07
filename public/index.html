@@ -57,7 +57,6 @@
             <option value="minor">Minor — 1 pt</option>
             <option value="major">Major — 2 pts</option>
             <option value="severe">Severe — 3 pts</option>
-            <option value="contest">Contested — 0 pts (ownership disputed)</option>
           </select>
           <div id="points-display" style="font-size:13px;color:var(--muted);margin-top:-10px;margin-bottom:16px;"></div>
         </div>
@@ -141,10 +140,11 @@
         <div class="field-group">
           <label for="photo">Primary Evidence Photo <span class="req">*</span></label>
           <input type="file" id="photo" name="photo" accept="image/*" required>
+          <div id="primary-photo-preview"></div>
         </div>
         <div id="extra-photos"></div>
         <button type="button" id="add-photo-btn" class="secondary" style="margin-top:4px;">+ Add Another Photo</button>
-        <div style="font-size:12px;color:var(--muted);margin-top:6px;">You can add as many photos as needed.</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px;">Add as many photos as needed.</div>
       </div>
 
       <button type="submit">Issue Ticket</button>
