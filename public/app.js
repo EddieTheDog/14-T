@@ -380,21 +380,29 @@ if (document.getElementById('ticket-view')) {
 
 function renderVerifyGate(container, t) {
   const isClaimed = t.is_unknown && !!t.claimed_name;
+  const hasLastInitial = isClaimed ? false : !!t.person_last_initial;
   const ticketId = t.id;
   container.innerHTML = `
     <div class="card">
       <h2>Verify your identity</h2>
       <p style="margin-bottom:16px;font-size:14px;color:var(--muted)">Enter your name to view this citation.</p>
       <div id="verify-msg"></div>
-      <div class="field-group">
-        <label for="verify-name">Your Name <span class="req">*</span></label>
-        <input type="text" id="verify-name" autocomplete="name" placeholder="First name or full name" style="max-width:280px;">
+      <div class="row">
+        <div class="field-group">
+          <label for="verify-name">First Name <span class="req">*</span></label>
+          <input type="text" id="verify-name" autocomplete="given-name" placeholder="First name">
+        </div>
+        ${hasLastInitial ? `
+        <div class="field-group">
+          <label for="verify-initial">Last Initial <span class="req">*</span></label>
+          <input type="text" id="verify-initial" autocomplete="family-name" maxlength="1" placeholder="e.g. S" style="text-transform:uppercase;width:80px;">
+        </div>` : ''}
       </div>
-      <button onclick="submitVerify('${ticketId}', ${isClaimed})">View My Ticket</button>
+      <button onclick="submitVerify('${ticketId}', ${isClaimed}, ${hasLastInitial})">View My Ticket</button>
     </div>
   `;
   document.getElementById('verify-name').addEventListener('keydown', e => {
-    if (e.key === 'Enter') submitVerify(ticketId, isClaimed);
+    if (e.key === 'Enter') submitVerify(ticketId, isClaimed, hasLastInitial);
   });
 }
 
@@ -430,21 +438,27 @@ async function submitClaim(id) {
   }
 }
 
-async function submitVerify(id, isClaimed) {
-  const entered = document.getElementById('verify-name').value.trim().toLowerCase();
+async function submitVerify(id, isClaimed, hasLastInitial) {
+  const enteredFirst = document.getElementById('verify-name').value.trim().toLowerCase();
+  const enteredInitial = hasLastInitial
+    ? (document.getElementById('verify-initial')?.value.trim().toUpperCase() || '')
+    : null;
   const msgEl = document.getElementById('verify-msg');
   const data = await API.getTicket(id);
   const t = data.ticket;
 
-  // Compare against claimed_name or person_first
-  const correctName = isClaimed
+  const correctFirst = isClaimed
     ? (t.claimed_name || '').toLowerCase()
     : (t.person_first || '').toLowerCase();
+  const correctInitial = hasLastInitial ? (t.person_last_initial || '').toUpperCase() : null;
 
-  if (entered && correctName && (correctName.startsWith(entered) || entered.startsWith(correctName))) {
+  const firstMatch = enteredFirst && correctFirst && correctFirst.startsWith(enteredFirst);
+  const initialMatch = !hasLastInitial || (enteredInitial === correctInitial);
+
+  if (firstMatch && initialMatch) {
     renderFullTicket(document.getElementById('ticket-view'), t, false);
   } else {
-    showMsg(msgEl, 'Name does not match. Try your first name only.', 'error');
+    showMsg(msgEl, 'Name does not match. Check your first name' + (hasLastInitial ? ' and last initial.' : '.'), 'error');
   }
 }
 
