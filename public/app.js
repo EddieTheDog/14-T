@@ -3,53 +3,133 @@
 
 // ── PENAL CODES ──────────────────────────────────────────────────────────────
 const PENAL_CODES = [
-  // Abandonment / Left Out
-  { code: '14T-100', label: 'Left Out / Abandoned', desc: 'Item left out and unattended for an unreasonable period.', category: 'abandonment' },
-  { code: '14T-101', label: 'Overnight Abandonment', desc: 'Item left out overnight without prior arrangement.', category: 'abandonment' },
-  { code: '14T-102', label: 'Common Area Obstruction', desc: 'Item blocking shared space or walkway.', category: 'abandonment' },
-  { code: '14T-103', label: 'Returned to Wrong Location', desc: 'Item placed in incorrect storage area after use.', category: 'abandonment' },
-  // Cleanliness
-  { code: '14T-200', label: 'Dish / Utensil Left Out', desc: 'Dirty dish, cup, or utensil left in non-kitchen area.', category: 'cleanliness' },
-  { code: '14T-201', label: 'Food / Wrapper Left Out', desc: 'Food, packaging, or food waste left in improper area.', category: 'cleanliness' },
-  { code: '14T-202', label: 'Spill Not Cleaned', desc: 'Spill or mess left unaddressed by responsible party.', category: 'cleanliness' },
-  { code: '14T-203', label: 'Trash Not Disposed', desc: 'Trash not placed in bin or bin not taken out when full.', category: 'cleanliness' },
-  { code: '14T-204', label: 'Bathroom Left Unclean', desc: 'Bathroom left in unsanitary condition.', category: 'cleanliness' },
-  // Noise / Disturbance
-  { code: '14T-300', label: 'Noise Violation', desc: 'Unreasonable noise disturbance during quiet hours.', category: 'noise' },
-  { code: '14T-301', label: 'Repeated Disturbance', desc: 'Second or subsequent noise/disturbance offense.', category: 'noise' },
-  // Property
-  { code: '14T-400', label: 'Unauthorized Use of Property', desc: 'Using another person\'s belongings without permission.', category: 'property' },
-  { code: '14T-401', label: 'Property Damage', desc: 'Damage caused to shared or personal property.', category: 'property' },
-  { code: '14T-402', label: 'Borrowed — Not Returned', desc: 'Item borrowed and not returned within agreed timeframe.', category: 'property' },
-  // Chores / Responsibilities
-  { code: '14T-500', label: 'Chore Not Completed', desc: 'Assigned chore not completed by deadline.', category: 'chores' },
-  { code: '14T-501', label: 'Chore Done Improperly', desc: 'Chore completed but not to acceptable standard.', category: 'chores' },
-  // Removal Notices
-  { code: '14T-600', label: 'Removal Notice — 24hr', desc: 'Item must be removed within 24 hours or it will be relocated.', category: 'removal' },
-  { code: '14T-601', label: 'Removal Notice — 48hr', desc: 'Item must be removed within 48 hours or it will be relocated.', category: 'removal' },
-  { code: '14T-602', label: 'Removal Notice — 72hr', desc: 'Item must be removed within 72 hours or it will be relocated.', category: 'removal' },
-  { code: '14T-603', label: 'Immediate Removal Required', desc: 'Item is blocking access or creating hazard and must be moved immediately.', category: 'removal' },
-  // Other
-  { code: '14T-900', label: 'Other', desc: '', category: 'other' }
+  // § 100 — Abandonment & Unauthorized Occupation
+  { code: '14T-100', label: 'Unauthorized Occupation of Common Area', desc: 'Item occupying shared space without authorization or prior arrangement.', category: 'abandonment' },
+  { code: '14T-101', label: 'Abandoned Item — Extended Period', desc: 'Item left unattended in a shared or common area for an unreasonable length of time.', category: 'abandonment' },
+  { code: '14T-102', label: 'Overnight Abandonment', desc: 'Item left out or unattended overnight without prior arrangement or justification.', category: 'abandonment' },
+  { code: '14T-103', label: 'Multi-Day Abandonment', desc: 'Item left unattended for more than 24 hours in a non-designated area.', category: 'abandonment' },
+  { code: '14T-104', label: 'Extended Abandonment (72+ hrs)', desc: 'Item has remained unattended and unaddressed for 72 hours or more.', category: 'abandonment' },
+  { code: '14T-105', label: 'Obstruction of Common Area', desc: 'Item placed in a manner that blocks, restricts, or impedes access to a shared space or walkway.', category: 'abandonment' },
+  { code: '14T-106', label: 'Counter / Surface Occupation', desc: 'Item left on a shared counter, table, or surface for an unreasonable period after use.', category: 'abandonment' },
+  { code: '14T-107', label: 'Floor Abandonment', desc: 'Item left on the floor of a shared space, posing a hazard or obstruction.', category: 'abandonment' },
+  { code: '14T-108', label: 'Entryway / Hallway Obstruction', desc: 'Item left in an entryway, hallway, or corridor blocking passage.', category: 'abandonment' },
+  { code: '14T-109', label: 'Returned to Wrong Location', desc: 'Item placed in an incorrect or non-designated storage area after use.', category: 'abandonment' },
+  { code: '14T-110', label: 'Furniture Misplacement', desc: 'Furniture or large item moved and not returned to its designated location.', category: 'abandonment' },
+  { code: '14T-111', label: 'Vehicle — Unauthorized Parking', desc: 'Bicycle, scooter, or vehicle left in an unauthorized or obstructive location.', category: 'abandonment' },
+  { code: '14T-112', label: 'Repeat Abandonment Offense', desc: 'Second or subsequent abandonment violation by the same party within a 30-day period.', category: 'abandonment' },
+
+  // § 200 — Cleanliness & Sanitation
+  { code: '14T-200', label: 'Dish / Utensil Left Out', desc: 'Dirty dish, cup, or utensil left outside the kitchen or sink area.', category: 'cleanliness' },
+  { code: '14T-201', label: 'Food or Waste Left Out', desc: 'Food, food packaging, or organic waste left in an improper area.', category: 'cleanliness' },
+  { code: '14T-202', label: 'Spill — Not Cleaned', desc: 'Liquid or food spill left unaddressed by the responsible party.', category: 'cleanliness' },
+  { code: '14T-203', label: 'Refuse Not Properly Disposed', desc: 'Trash, recyclables, or waste not placed in the appropriate receptacle.', category: 'cleanliness' },
+  { code: '14T-204', label: 'Sanitation Violation', desc: 'Area left in an unsanitary condition attributable to a specific party.', category: 'cleanliness' },
+
+  // § 300 — Noise & Disturbance
+  { code: '14T-300', label: 'Noise Disturbance', desc: 'Unreasonable noise during designated quiet hours or shared spaces.', category: 'noise' },
+  { code: '14T-301', label: 'Repeat Noise Offense', desc: 'Second or subsequent noise/disturbance violation.', category: 'noise' },
+
+  // § 400 — Property
+  { code: '14T-400', label: 'Unauthorized Use of Property', desc: "Using another person's belongings without permission.", category: 'property' },
+  { code: '14T-401', label: 'Property Damage', desc: 'Damage caused to shared or personal property through negligence or misuse.', category: 'property' },
+  { code: '14T-402', label: 'Borrowed Item — Not Returned', desc: 'Item borrowed and not returned within the agreed or reasonable timeframe.', category: 'property' },
+
+  // § 900 — Other
+  { code: '14T-900', label: 'Other / Custom', desc: '', category: 'other' }
 ];
 
 const CATEGORY_LABELS = {
-  abandonment: 'Abandonment / Left Out',
-  cleanliness: 'Cleanliness',
-  noise: 'Noise / Disturbance',
-  property: 'Property',
-  chores: 'Chores / Responsibilities',
-  removal: 'Removal Notices',
-  other: 'Other'
+  abandonment: '§ 100 — Abandonment & Unauthorized Occupation',
+  cleanliness: '§ 200 — Cleanliness & Sanitation',
+  noise:       '§ 300 — Noise & Disturbance',
+  property:    '§ 400 — Property',
+  other:       '§ 900 — Other'
 };
+
+// ── QUICK-ISSUE PRESETS ───────────────────────────────────────────────────────
+const QUICK_PRESETS = [
+  {
+    label: 'Box / Package Left on Counter',
+    icon: '📦',
+    violation_type: 'warning',
+    penal_code: '14T-106',
+    description: 'A box or package has been left on the counter for an unreasonable period and is occupying shared surface space.',
+    removal_notice: true,
+    removal_deadline: '24hr',
+  },
+  {
+    label: 'Item Left on Floor',
+    icon: '👟',
+    violation_type: 'warning',
+    penal_code: '14T-107',
+    description: 'An item has been left on the floor of a shared space, creating an obstruction or hazard.',
+    removal_notice: true,
+    removal_deadline: '24hr',
+  },
+  {
+    label: 'Hallway / Entryway Blocked',
+    icon: '🚧',
+    violation_type: 'minor',
+    penal_code: '14T-108',
+    description: 'An item is blocking the hallway or entryway, restricting safe passage through the area.',
+    removal_notice: true,
+    removal_deadline: 'immediately',
+  },
+  {
+    label: 'Item Left Out Overnight',
+    icon: '🌙',
+    violation_type: 'minor',
+    penal_code: '14T-102',
+    description: 'Item was left out in a shared or common area overnight without prior arrangement.',
+    removal_notice: true,
+    removal_deadline: '24hr',
+  },
+  {
+    label: 'Multi-Day Abandonment',
+    icon: '📅',
+    violation_type: 'major',
+    penal_code: '14T-103',
+    description: 'Item has been left unattended in a non-designated area for more than 24 hours with no indication of when it will be addressed.',
+    removal_notice: true,
+    removal_deadline: '24hr',
+  },
+  {
+    label: 'Extended Abandonment (72+ hrs)',
+    icon: '⏰',
+    violation_type: 'severe',
+    penal_code: '14T-104',
+    description: 'Item has remained unattended and unaddressed in a shared space for 72 hours or more. This constitutes an extended abandonment.',
+    removal_notice: true,
+    removal_deadline: 'immediately',
+  },
+  {
+    label: 'Dishes Left Out',
+    icon: '🍽️',
+    violation_type: 'warning',
+    penal_code: '14T-200',
+    description: 'Dirty dish, cup, or utensil has been left outside the kitchen or sink area.',
+    removal_notice: false,
+    removal_deadline: null,
+  },
+  {
+    label: 'Bicycle / Vehicle Parked Wrong',
+    icon: '🚲',
+    violation_type: 'minor',
+    penal_code: '14T-111',
+    description: 'Bicycle, scooter, or vehicle left in an unauthorized or obstructive location.',
+    removal_notice: true,
+    removal_deadline: '24hr',
+  },
+];
+
 
 // ── VIOLATION TYPES ──────────────────────────────────────────────────────────
 const VIOLATION_TYPES = {
-  notice:   { label: 'Notice',         points: 0, desc: '0 pts — Informational only' },
-  warning:  { label: 'Warning',        points: 0, desc: '0 pts — Warning only' },
-  minor:    { label: 'Minor',          points: 1, desc: '1 pt' },
-  major:    { label: 'Major',          points: 2, desc: '2 pts' },
-  severe:   { label: 'Severe',         points: 3, desc: '3 pts' },
+  notice:  { label: 'Notice',  points: 0, desc: '0 pts — Informational only' },
+  warning: { label: 'Warning', points: 0, desc: '0 pts — Warning only' },
+  minor:   { label: 'Minor',   points: 1, desc: '1 pt' },
+  major:   { label: 'Major',   points: 2, desc: '2 pts' },
+  severe:  { label: 'Severe',  points: 3, desc: '3 pts' },
 };
 
 const API = {
@@ -83,6 +163,10 @@ const API = {
   },
   async declineAppeal(id) {
     const res = await fetch('/api/appeal-decline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    return res.json();
+  },
+  async itemRemoved(id) {
+    const res = await fetch('/api/item-removed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
     return res.json();
   }
 };
@@ -269,7 +353,53 @@ if (document.getElementById('new-ticket-form')) {
     });
   }
 
-  // ── Removal notice toggle ────────────────────────────────────────────────
+  // ── Quick presets ─────────────────────────────────────────────────────────
+  const presetChips = document.getElementById('preset-chips');
+  if (presetChips) {
+    QUICK_PRESETS.forEach((preset, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.style.cssText = 'padding:7px 14px;font-size:12px;font-weight:600;border:1.5px solid var(--border);background:var(--white);cursor:pointer;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:6px;';
+      btn.innerHTML = `<span>${preset.icon}</span><span>${preset.label}</span>`;
+      btn.addEventListener('click', () => {
+        // Highlight selected
+        presetChips.querySelectorAll('button').forEach(b => {
+          b.style.borderColor = 'var(--border)';
+          b.style.background = 'var(--white)';
+          b.style.color = 'var(--text)';
+        });
+        btn.style.borderColor = 'var(--blue)';
+        btn.style.background = 'var(--blue)';
+        btn.style.color = '#fff';
+
+        // Fill violation type
+        if (violationSelect) { violationSelect.value = preset.violation_type; violationSelect.dispatchEvent(new Event('change')); }
+
+        // Fill penal code
+        if (penalSelect) { penalSelect.value = preset.penal_code; penalSelect.dispatchEvent(new Event('change')); }
+
+        // Fill description (override autofill)
+        const descEl = document.getElementById('description');
+        if (descEl) { descEl.value = preset.description; descEl.dataset.autofilled = '0'; }
+
+        // Set removal notice
+        if (removalCheck) {
+          removalCheck.checked = !!preset.removal_notice;
+          removalCheck.dispatchEvent(new Event('change'));
+          if (preset.removal_notice && preset.removal_deadline && removalDeadlineSelect) {
+            removalDeadlineSelect.value = preset.removal_deadline;
+            removalDeadlineSelect.dispatchEvent(new Event('change'));
+          }
+        }
+
+        // Scroll to location
+        document.getElementById('location_preset')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      presetChips.appendChild(btn);
+    });
+  }
+
+  // ── Removal notice toggle ─────────────────────────────────────────────────
   const removalCheck = document.getElementById('removal_notice');
   const removalFields = document.getElementById('removal-fields');
   const removalDeadlineSelect = document.getElementById('removal_deadline');
@@ -703,6 +833,7 @@ function renderFullTicket(container, t, isIssuerView) {
   const log = [];
   log.push({ time: t.created_at, msg: 'Ticket issued' });
   if (t.removal_notice) log.push({ time: null, msg: `Removal notice attached — ${formatDeadline(t.removal_deadline, t.created_at)}` });
+  if (t.item_removed_at) log.push({ time: t.item_removed_at, msg: 'Recipient reported item removed — pending verification' });
   if (t.appeal_flagged && t.appeal_note) log.push({ time: null, msg: 'Appeal filed by recipient' });
   if (t.appeal_response) log.push({ time: null, msg: 'Response sent by issuer' });
   if (t.appeal_declined) log.push({ time: null, msg: 'Appeal declined by issuer' });
@@ -760,11 +891,26 @@ function renderFullTicket(container, t, isIssuerView) {
         <div style="background:#fff3cd;border:2px solid #e6a000;padding:14px;margin-bottom:16px;">
           <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#a07000;margin-bottom:6px;">⚠ Removal Notice Attached</div>
           <div style="font-size:14px;font-weight:600;color:#333;">
-            This item must be removed
-            ${t.removal_deadline ? ` — <strong>${formatDeadline(t.removal_deadline, t.created_at)}</strong>` : ''}.
+            This item must be removed${t.removal_deadline ? ` — <strong>${formatDeadline(t.removal_deadline, t.created_at)}</strong>` : ''}.
           </div>
           ${t.removal_note ? `<div style="font-size:13px;color:var(--muted);margin-top:6px;">${t.removal_note}</div>` : ''}
           <div style="font-size:12px;color:var(--accent);margin-top:8px;font-weight:600;">Failure to comply may result in relocation of the item.</div>
+          ${!isIssuerView && t.status !== 'resolved' && !t.item_removed_at ? `
+            <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;">
+              <button onclick="submitItemRemoved('${t.id}')" style="background:#2a7a2a;color:#fff;padding:10px 18px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">
+                ✓ I Have Removed the Item
+              </button>
+              <div style="font-size:11px;color:var(--muted);margin-top:6px;">The issuer will be notified to verify. Points may be waived if confirmed.</div>
+            </div>` : ''}
+          ${t.item_removed_at ? `
+            <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;">
+              <strong style="color:var(--success);">✓ Item Removed</strong> — Reported ${new Date(t.item_removed_at).toLocaleString()}. Pending issuer verification.
+            </div>` : ''}
+          ${isIssuerView && t.item_removed_at && t.status !== 'resolved' ? `
+            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+              <button onclick="verifyItemRemoved('${t.id}', true)" style="background:var(--success);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;">✓ Confirmed — Close with No Points</button>
+              <button onclick="verifyItemRemoved('${t.id}', false)" style="background:var(--accent);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;">✗ Not Removed — Keep Points</button>
+            </div>` : ''}
         </div>` : ''}
 
       ${appealThread}
@@ -775,7 +921,26 @@ function renderFullTicket(container, t, isIssuerView) {
   `;
 }
 
-async function submitAppeal(id) {
+async function submitItemRemoved(id) {
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  const result = await API.itemRemoved(id);
+  if (result.success) {
+    API.getTicket(id).then(data => {
+      if (data?.ticket) renderFullTicket(document.getElementById('ticket-view'), data.ticket, false);
+    });
+  } else {
+    btn.disabled = false; btn.textContent = '✓ I Have Removed the Item';
+    alert(result.error || 'Failed to submit.');
+  }
+}
+
+async function verifyItemRemoved(id, confirmed) {
+  // confirmed = true → dismiss (no points), false → keep points and mark not removed
+  const result = await API.resolve(id, confirmed);
+  if (result.success) location.reload();
+  else alert(result.error || 'Failed to update.');
+}
   const noteEl = document.getElementById('appeal-note');
   const note = noteEl ? noteEl.value.trim() : '';
   const confirmEl = document.getElementById('appeal-confirm');
@@ -824,6 +989,7 @@ function getTicketStatus(t) {
   if (t.status === 'resolved') return { label: 'RESOLVED', cls: 'resolved', key: 'resolved' };
   if (t.appeal_declined) return { label: 'DECLINED', cls: 'severe', key: 'declined' };
   if (t.status === 'locked') return { label: 'LOCKED', cls: 'locked', key: 'locked' };
+  if (t.item_removed_at && t.status !== 'resolved') return { label: 'VERIFY', cls: 'flagged', key: 'verify' };
   if (needsResponse) return { label: 'APPEAL', cls: 'flagged', key: 'appeal' };
   if (hasReply) return { label: 'REPLY', cls: 'flagged', key: 'reply' };
   return { label: 'OPEN', cls: 'open', key: 'open' };
@@ -840,9 +1006,13 @@ function renderTicketRow(t) {
   const viewAsBtn = `<a href="ticket.html?id=${t.id}&bypass=1" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:underline;display:block;margin-top:4px;">View as Recipient</a>`;
   const actionBtn = t.status === 'resolved'
     ? '—'
-    : t.appeal_flagged
-      ? `<button style="padding:4px 12px;font-size:12px;background:var(--blue)" onclick="openAppealModal('${t.id}')">View Appeal</button>`
-      : `<button class="success" style="padding:4px 10px;font-size:12px" onclick="showResolveModal('${t.id}', 'resolve')">Resolve</button>`;
+    : t.item_removed_at
+      ? `<div style="font-size:12px;color:var(--success);font-weight:600;margin-bottom:4px;">✓ Recipient says removed</div>
+         <button onclick="verifyItemRemoved('${t.id}', true)" style="padding:3px 8px;font-size:11px;background:var(--success);color:#fff;border:none;cursor:pointer;font-family:inherit;margin-right:4px;">Confirm & Close</button>
+         <button onclick="verifyItemRemoved('${t.id}', false)" style="padding:3px 8px;font-size:11px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-family:inherit;">Not Removed</button>`
+      : t.appeal_flagged
+        ? `<button style="padding:4px 12px;font-size:12px;background:var(--blue)" onclick="openAppealModal('${t.id}')">View Appeal</button>`
+        : `<button class="success" style="padding:4px 10px;font-size:12px" onclick="showResolveModal('${t.id}', 'resolve')">Resolve</button>`;
   return `<tr>
     <td><a href="ticket.html?id=${t.id}&bypass=1" style="font-size:12px">${t.id}</a><br><span style="font-size:11px;color:var(--muted)">${dateStr}</span></td>
     <td>${displayName}</td>
@@ -916,6 +1086,7 @@ function renderFilterBar() {
           <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);">Status</label>
           <select id="f-status" onchange="setFilter('status',this.value)" style="font-size:13px;padding:7px 28px 7px 10px;border:1.5px solid var(--border);background:var(--white);min-width:170px;appearance:auto;">
             <option value="">All Statuses</option>
+            <option value="verify">Verify Removal</option>
             <option value="open">Open</option>
             <option value="appeal">Needs Response</option>
             <option value="reply">Follow-up Reply</option>
