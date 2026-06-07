@@ -286,10 +286,13 @@ if (document.getElementById('new-ticket-form')) {
       if (file) {
         const reader = new FileReader();
         reader.onload = e => {
-          primaryPreview.innerHTML = `<img src="${e.target.result}" style="width:100%;max-height:200px;object-fit:cover;border:1px solid var(--border);margin-top:8px;">
+          primaryPreview.innerHTML = `
+            <img src="${e.target.result}" style="width:100%;max-height:200px;object-fit:cover;border:1px solid var(--border);margin-top:8px;">
             <div style="font-size:12px;color:var(--success);margin-top:4px;">✓ ${file.name}</div>`;
         };
         reader.readAsDataURL(file);
+      } else {
+        primaryPreview.innerHTML = '';
       }
     });
   }
@@ -300,32 +303,39 @@ if (document.getElementById('new-ticket-form')) {
       extraPhotoFiles.push(null);
 
       const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'margin-bottom:12px;border:1px solid var(--border);padding:10px;background:var(--bg);';
+      wrapper.style.cssText = 'margin-top:10px;';
 
-      const label = document.createElement('div');
-      label.style.cssText = 'font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;';
-      label.textContent = `Photo ${idx + 2}`;
+      // Row: label + remove button
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;';
 
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.style.cssText = 'width:100%;margin-bottom:6px;';
-
-      const statusEl = document.createElement('div');
-      statusEl.style.cssText = 'font-size:12px;color:var(--muted);';
-      statusEl.textContent = 'No file selected';
-
-      const imgEl = document.createElement('img');
-      imgEl.style.cssText = 'display:none;width:100%;max-height:160px;object-fit:cover;border:1px solid var(--border);margin-top:6px;';
+      const labelEl = document.createElement('label');
+      labelEl.style.cssText = 'font-size:13px;font-weight:600;margin-bottom:0;';
+      labelEl.textContent = `Photo ${idx + 2}`;
 
       const removeBtn = document.createElement('button');
       removeBtn.type = 'button';
       removeBtn.textContent = '✕ Remove';
-      removeBtn.style.cssText = 'background:transparent;color:var(--accent);border:none;padding:0;font-size:12px;cursor:pointer;margin-top:6px;';
+      removeBtn.style.cssText = 'background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0;font-family:inherit;';
       removeBtn.addEventListener('click', () => {
         extraPhotoFiles[idx] = null;
         wrapper.remove();
       });
+
+      row.appendChild(labelEl);
+      row.appendChild(removeBtn);
+
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.capture = 'environment';
+      input.style.cssText = 'width:100%;margin-bottom:4px;';
+
+      const imgEl = document.createElement('img');
+      imgEl.style.cssText = 'display:none;width:100%;max-height:160px;object-fit:cover;border:1px solid var(--border);margin-top:4px;';
+
+      const statusEl = document.createElement('div');
+      statusEl.style.cssText = 'font-size:12px;color:var(--muted);';
 
       input.addEventListener('change', () => {
         const file = input.files[0];
@@ -339,11 +349,10 @@ if (document.getElementById('new-ticket-form')) {
         }
       });
 
-      wrapper.appendChild(label);
+      wrapper.appendChild(row);
       wrapper.appendChild(input);
       wrapper.appendChild(statusEl);
       wrapper.appendChild(imgEl);
-      wrapper.appendChild(removeBtn);
       extraPhotosContainer.appendChild(wrapper);
     });
   }
@@ -769,14 +778,14 @@ function renderTicketRow(t) {
 }
 
 function setFilter(key, value) {
-  _filters[key] = _filters[key] === value ? '' : value;
-  renderFilterBar();
+  _filters[key] = value;
+  syncFilterUI();
   applyFilters();
 }
 
 function setSortFilter(value) {
   _filters.sort = value;
-  renderFilterBar();
+  syncFilterUI();
   applyFilters();
 }
 
@@ -785,83 +794,96 @@ function clearFilters() {
   _filters.person = '';
   _filters.severity = '';
   _filters.status = '';
-  renderFilterBar();
+  syncFilterUI();
   applyFilters();
+}
+
+function syncFilterUI() {
+  const anyActive = _filters.sort !== 'newest' || _filters.person || _filters.severity || _filters.status;
+  const clearBtn = document.getElementById('filter-clear-btn');
+  if (clearBtn) {
+    clearBtn.disabled = !anyActive;
+    clearBtn.style.opacity = anyActive ? '1' : '0.4';
+    clearBtn.style.cursor = anyActive ? 'pointer' : 'default';
+  }
+  // Sync selects
+  const map = { 'f-sort': _filters.sort, 'f-person': _filters.person, 'f-severity': _filters.severity, 'f-status': _filters.status };
+  Object.entries(map).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  });
 }
 
 function renderFilterBar() {
   const bar = document.getElementById('filter-bar');
   if (!bar) return;
 
-  const anyActive = _filters.sort !== 'newest' || _filters.person || _filters.severity || _filters.status;
-
-  const sortOptions = [
-    { val: 'newest', label: '↓ Newest' },
-    { val: 'oldest', label: '↑ Oldest' },
-    { val: 'person', label: 'A–Z Name' },
-    { val: 'points-high', label: '⬆ Points' },
-    { val: 'points-low', label: '⬇ Points' },
-  ];
-
-  const statusOptions = [
-    { val: 'open', label: 'Open' },
-    { val: 'appeal', label: '⚑ Needs Response' },
-    { val: 'reply', label: '↩ Follow-up Reply' },
-    { val: 'locked', label: 'Locked' },
-    { val: 'declined', label: 'Declined' },
-    { val: 'resolved', label: 'Resolved' },
-  ];
-
-  const severityOptions = [
-    { val: 'notice', label: 'Notice' },
-    { val: 'warning', label: 'Warning' },
-    { val: 'removal', label: 'Removal' },
-    { val: 'minor', label: 'Minor' },
-    { val: 'major', label: 'Major' },
-    { val: 'severe', label: 'Severe' },
-  ];
-
   const names = [...new Set(_allTickets.map(t => t.claimed_name || t.person_name).filter(n => n && n !== 'Unknown'))].sort();
 
-  const chip = (label, active, onclick, color = 'var(--blue)') =>
-    `<button onclick="${onclick}" style="
-      padding:5px 12px;font-size:12px;font-weight:${active ? '700' : '400'};
-      border:1.5px solid ${active ? color : 'var(--border)'};
-      background:${active ? color : 'var(--white)'};
-      color:${active ? 'var(--white)' : 'var(--text)'};
-      cursor:pointer;font-family:inherit;white-space:nowrap;
-    ">${label}</button>`;
-
-  const sectionLabel = (text) => `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-top:14px;margin-bottom:6px;">${text}</div>`;
-
   bar.innerHTML = `
-    ${sectionLabel('Sort')}
-    <div style="display:flex;flex-wrap:wrap;gap:6px;">
-      ${sortOptions.map(o => chip(o.label, _filters.sort === o.val, `setSortFilter('${o.val}')`)).join('')}
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+      <div style="display:flex;gap:10px;align-items:flex-end;min-width:max-content;padding-bottom:4px;">
+
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);">Sort</label>
+          <select id="f-sort" onchange="setSortFilter(this.value)" style="font-size:13px;padding:7px 28px 7px 10px;border:1.5px solid var(--border);background:var(--white);min-width:140px;appearance:auto;">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="person">Person A–Z</option>
+            <option value="points-high">Most Points</option>
+            <option value="points-low">Fewest Points</option>
+          </select>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);">Status</label>
+          <select id="f-status" onchange="setFilter('status',this.value)" style="font-size:13px;padding:7px 28px 7px 10px;border:1.5px solid var(--border);background:var(--white);min-width:170px;appearance:auto;">
+            <option value="">All Statuses</option>
+            <option value="open">Open</option>
+            <option value="appeal">Needs Response</option>
+            <option value="reply">Follow-up Reply</option>
+            <option value="locked">Locked</option>
+            <option value="declined">Declined</option>
+            <option value="resolved">Resolved</option>
+          </select>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);">Severity</label>
+          <select id="f-severity" onchange="setFilter('severity',this.value)" style="font-size:13px;padding:7px 28px 7px 10px;border:1.5px solid var(--border);background:var(--white);min-width:145px;appearance:auto;">
+            <option value="">All Types</option>
+            <option value="notice">Notice</option>
+            <option value="warning">Warning</option>
+            <option value="removal">Removal Notice</option>
+            <option value="minor">Minor</option>
+            <option value="major">Major</option>
+            <option value="severe">Severe</option>
+          </select>
+        </div>
+
+        ${names.length > 1 ? `
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);">Person</label>
+          <select id="f-person" onchange="setFilter('person',this.value)" style="font-size:13px;padding:7px 28px 7px 10px;border:1.5px solid var(--border);background:var(--white);min-width:140px;appearance:auto;">
+            <option value="">All People</option>
+            ${names.map(n => `<option value="${n}">${n}</option>`).join('')}
+          </select>
+        </div>` : ''}
+
+        <div style="display:flex;flex-direction:column;gap:4px;justify-content:flex-end;">
+          <button id="filter-clear-btn" onclick="clearFilters()" disabled style="
+            padding:7px 14px;font-size:12px;font-weight:600;
+            background:var(--white);color:var(--accent);
+            border:1.5px solid var(--accent);cursor:default;
+            opacity:0.4;white-space:nowrap;font-family:inherit;
+          ">✕ Clear Filters</button>
+        </div>
+
+      </div>
     </div>
-
-    ${sectionLabel('Status')}
-    <div style="display:flex;flex-wrap:wrap;gap:6px;">
-      ${statusOptions.map(o => chip(o.label, _filters.status === o.val, `setFilter('status','${o.val}')`,
-        o.val === 'appeal' || o.val === 'reply' ? 'var(--warn)' :
-        o.val === 'resolved' ? 'var(--success)' :
-        o.val === 'declined' ? 'var(--accent)' : 'var(--blue)'
-      )).join('')}
-    </div>
-
-    ${sectionLabel('Severity')}
-    <div style="display:flex;flex-wrap:wrap;gap:6px;">
-      ${severityOptions.map(o => chip(o.label, _filters.severity === o.val, `setFilter('severity','${o.val}')`)).join('')}
-    </div>
-
-    ${names.length > 1 ? `
-    ${sectionLabel('Person')}
-    <div style="display:flex;flex-wrap:wrap;gap:6px;">
-      ${names.map(n => chip(n, _filters.person === n, `setFilter('person',${JSON.stringify(n)})`)).join('')}
-    </div>` : ''}
-
-    ${anyActive ? `<div style="margin-top:14px;"><button onclick="clearFilters()" style="padding:5px 14px;font-size:12px;background:transparent;border:1.5px solid var(--accent);color:var(--accent);cursor:pointer;font-family:inherit;font-weight:600;">✕ Clear All Filters</button></div>` : ''}
   `;
+
+  syncFilterUI();
 }
 
 function applyFilters() {
