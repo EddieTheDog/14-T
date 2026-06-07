@@ -15,7 +15,8 @@ export async function onRequest(context) {
       const {
         id, person_first, person_last_initial, person_name,
         is_unknown, violation_type, points, location, penal_code, description,
-        item_name, product_number, serial_number, photo_base64, extra_photos, created_at
+        item_name, product_number, serial_number, photo_base64, extra_photos,
+        removal_notice, removal_deadline, removal_note, created_at
       } = body;
 
       if (!id || !person_name || !violation_type || !location || !photo_base64) {
@@ -23,24 +24,15 @@ export async function onRequest(context) {
       }
 
       await env.DB.prepare(
-        `INSERT INTO tickets (id, person_first, person_last_initial, person_name, is_unknown, violation_type, points, location, penal_code, description, item_name, product_number, serial_number, photo_base64, extra_photos, status, appeal_flagged, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', 0, ?)`
+        `INSERT INTO tickets (id, person_first, person_last_initial, person_name, is_unknown, violation_type, points, location, penal_code, description, item_name, product_number, serial_number, photo_base64, extra_photos, removal_notice, removal_deadline, removal_note, status, appeal_flagged, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', 0, ?)`
       ).bind(
-        id,
-        person_first || null,
-        person_last_initial || null,
-        person_name,
-        is_unknown ? 1 : 0,
-        violation_type,
-        points,
-        location,
-        penal_code || null,
-        description || null,
-        item_name || null,
-        product_number || null,
-        serial_number || null,
-        photo_base64,
+        id, person_first || null, person_last_initial || null, person_name,
+        is_unknown ? 1 : 0, violation_type, points, location,
+        penal_code || null, description || null, item_name || null,
+        product_number || null, serial_number || null, photo_base64,
         extra_photos || null,
+        removal_notice ? 1 : 0, removal_deadline || null, removal_note || null,
         created_at
       ).run();
 
