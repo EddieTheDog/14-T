@@ -45,13 +45,12 @@ const CATEGORY_LABELS = {
 
 // ── VIOLATION TYPES ──────────────────────────────────────────────────────────
 const VIOLATION_TYPES = {
-  notice:   { label: 'Notice',          points: 0, desc: 'Informational only, no points' },
+  notice:   { label: 'Notice',          points: 0, desc: '0 pts — Informational only' },
   warning:  { label: 'Warning',         points: 0, desc: '0 pts — Warning only' },
   removal:  { label: 'Removal Notice',  points: 0, desc: '0 pts — Must remove item or face escalation' },
   minor:    { label: 'Minor',           points: 1, desc: '1 pt' },
   major:    { label: 'Major',           points: 2, desc: '2 pts' },
   severe:   { label: 'Severe',          points: 3, desc: '3 pts' },
-  contest:  { label: 'Contested',       points: 0, desc: '0 pts — Ownership/responsibility disputed' }
 };
 
 const API = {
@@ -275,51 +274,76 @@ if (document.getElementById('new-ticket-form')) {
 
   // ── Multi-photo ──────────────────────────────────────────────────────────
   const photoInput = document.getElementById('photo');
+  const primaryPreview = document.getElementById('primary-photo-preview');
   const extraPhotosContainer = document.getElementById('extra-photos');
   const addPhotoBtn = document.getElementById('add-photo-btn');
-  // Store files directly — don't rely on DOM inputs staying attached
   const extraPhotoFiles = [];
+
+  // Primary photo preview
+  if (photoInput && primaryPreview) {
+    photoInput.addEventListener('change', () => {
+      const file = photoInput.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          primaryPreview.innerHTML = `<img src="${e.target.result}" style="width:100%;max-height:200px;object-fit:cover;border:1px solid var(--border);margin-top:8px;">
+            <div style="font-size:12px;color:var(--success);margin-top:4px;">✓ ${file.name}</div>`;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
 
   if (addPhotoBtn) {
     addPhotoBtn.addEventListener('click', () => {
-      const idx = extraPhotoFiles.length; // slot index before file chosen
-      extraPhotoFiles.push(null); // reserve slot
+      const idx = extraPhotoFiles.length;
+      extraPhotoFiles.push(null);
 
       const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'margin-bottom:10px;';
+      wrapper.style.cssText = 'margin-bottom:12px;border:1px solid var(--border);padding:10px;background:var(--bg);';
+
+      const label = document.createElement('div');
+      label.style.cssText = 'font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;';
+      label.textContent = `Photo ${idx + 2}`;
 
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
       input.style.cssText = 'width:100%;margin-bottom:6px;';
 
-      const preview = document.createElement('div');
-      preview.style.cssText = 'font-size:12px;color:var(--muted);';
-      preview.textContent = `Photo ${idx + 2}: not selected`;
+      const statusEl = document.createElement('div');
+      statusEl.style.cssText = 'font-size:12px;color:var(--muted);';
+      statusEl.textContent = 'No file selected';
+
+      const imgEl = document.createElement('img');
+      imgEl.style.cssText = 'display:none;width:100%;max-height:160px;object-fit:cover;border:1px solid var(--border);margin-top:6px;';
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.textContent = '✕ Remove';
+      removeBtn.style.cssText = 'background:transparent;color:var(--accent);border:none;padding:0;font-size:12px;cursor:pointer;margin-top:6px;';
+      removeBtn.addEventListener('click', () => {
+        extraPhotoFiles[idx] = null;
+        wrapper.remove();
+      });
 
       input.addEventListener('change', () => {
         const file = input.files[0];
         if (file) {
           extraPhotoFiles[idx] = file;
-          preview.style.color = 'var(--success)';
-          preview.textContent = `✓ Photo ${idx + 2}: ${file.name}`;
-          // Show thumbnail
+          statusEl.style.color = 'var(--success)';
+          statusEl.textContent = `✓ ${file.name}`;
           const reader = new FileReader();
-          reader.onload = e => {
-            let img = wrapper.querySelector('img');
-            if (!img) {
-              img = document.createElement('img');
-              img.style.cssText = 'width:100%;max-height:160px;object-fit:cover;border:1px solid var(--border);margin-top:4px;';
-              wrapper.appendChild(img);
-            }
-            img.src = e.target.result;
-          };
+          reader.onload = e => { imgEl.src = e.target.result; imgEl.style.display = 'block'; };
           reader.readAsDataURL(file);
         }
       });
 
+      wrapper.appendChild(label);
       wrapper.appendChild(input);
-      wrapper.appendChild(preview);
+      wrapper.appendChild(statusEl);
+      wrapper.appendChild(imgEl);
+      wrapper.appendChild(removeBtn);
       extraPhotosContainer.appendChild(wrapper);
     });
   }
@@ -706,6 +730,7 @@ async function submitAppeal(id) {
 // ── DASHBOARD ────────────────────────────────────────────────────────────────
 const _ticketCache = {};
 let _allTickets = [];
+const _filters = { sort: 'newest', person: '', severity: '', status: '' };
 
 function getTicketStatus(t) {
   const needsResponse = t.appeal_flagged && !t.appeal_response && !t.appeal_declined && t.status !== 'resolved';
@@ -731,7 +756,7 @@ function renderTicketRow(t) {
     ? '—'
     : t.appeal_flagged
       ? `<button style="padding:4px 12px;font-size:12px;background:var(--blue)" onclick="openAppealModal('${t.id}')">View Appeal</button>`
-      : `<button class="success" style="padding:4px 10px;font-size:12px" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
+      : `<button class="success" style="padding:4px 10px;font-size:12px" onclick="showResolveModal('${t.id}', 'resolve')">Resolve</button>`;
   return `<tr>
     <td><a href="ticket.html?id=${t.id}&bypass=1" style="font-size:12px">${t.id}</a><br><span style="font-size:11px;color:var(--muted)">${dateStr}</span></td>
     <td>${displayName}</td>
@@ -743,44 +768,125 @@ function renderTicketRow(t) {
   </tr>`;
 }
 
+function setFilter(key, value) {
+  _filters[key] = _filters[key] === value ? '' : value;
+  renderFilterBar();
+  applyFilters();
+}
+
+function setSortFilter(value) {
+  _filters.sort = value;
+  renderFilterBar();
+  applyFilters();
+}
+
+function clearFilters() {
+  _filters.sort = 'newest';
+  _filters.person = '';
+  _filters.severity = '';
+  _filters.status = '';
+  renderFilterBar();
+  applyFilters();
+}
+
+function renderFilterBar() {
+  const bar = document.getElementById('filter-bar');
+  if (!bar) return;
+
+  const anyActive = _filters.sort !== 'newest' || _filters.person || _filters.severity || _filters.status;
+
+  const sortOptions = [
+    { val: 'newest', label: '↓ Newest' },
+    { val: 'oldest', label: '↑ Oldest' },
+    { val: 'person', label: 'A–Z Name' },
+    { val: 'points-high', label: '⬆ Points' },
+    { val: 'points-low', label: '⬇ Points' },
+  ];
+
+  const statusOptions = [
+    { val: 'open', label: 'Open' },
+    { val: 'appeal', label: '⚑ Needs Response' },
+    { val: 'reply', label: '↩ Follow-up Reply' },
+    { val: 'locked', label: 'Locked' },
+    { val: 'declined', label: 'Declined' },
+    { val: 'resolved', label: 'Resolved' },
+  ];
+
+  const severityOptions = [
+    { val: 'notice', label: 'Notice' },
+    { val: 'warning', label: 'Warning' },
+    { val: 'removal', label: 'Removal' },
+    { val: 'minor', label: 'Minor' },
+    { val: 'major', label: 'Major' },
+    { val: 'severe', label: 'Severe' },
+  ];
+
+  const names = [...new Set(_allTickets.map(t => t.claimed_name || t.person_name).filter(n => n && n !== 'Unknown'))].sort();
+
+  const chip = (label, active, onclick, color = 'var(--blue)') =>
+    `<button onclick="${onclick}" style="
+      padding:5px 12px;font-size:12px;font-weight:${active ? '700' : '400'};
+      border:1.5px solid ${active ? color : 'var(--border)'};
+      background:${active ? color : 'var(--white)'};
+      color:${active ? 'var(--white)' : 'var(--text)'};
+      cursor:pointer;font-family:inherit;white-space:nowrap;
+    ">${label}</button>`;
+
+  const sectionLabel = (text) => `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-top:14px;margin-bottom:6px;">${text}</div>`;
+
+  bar.innerHTML = `
+    ${sectionLabel('Sort')}
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${sortOptions.map(o => chip(o.label, _filters.sort === o.val, `setSortFilter('${o.val}')`)).join('')}
+    </div>
+
+    ${sectionLabel('Status')}
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${statusOptions.map(o => chip(o.label, _filters.status === o.val, `setFilter('status','${o.val}')`,
+        o.val === 'appeal' || o.val === 'reply' ? 'var(--warn)' :
+        o.val === 'resolved' ? 'var(--success)' :
+        o.val === 'declined' ? 'var(--accent)' : 'var(--blue)'
+      )).join('')}
+    </div>
+
+    ${sectionLabel('Severity')}
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${severityOptions.map(o => chip(o.label, _filters.severity === o.val, `setFilter('severity','${o.val}')`)).join('')}
+    </div>
+
+    ${names.length > 1 ? `
+    ${sectionLabel('Person')}
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${names.map(n => chip(n, _filters.person === n, `setFilter('person',${JSON.stringify(n)})`)).join('')}
+    </div>` : ''}
+
+    ${anyActive ? `<div style="margin-top:14px;"><button onclick="clearFilters()" style="padding:5px 14px;font-size:12px;background:transparent;border:1.5px solid var(--accent);color:var(--accent);cursor:pointer;font-family:inherit;font-weight:600;">✕ Clear All Filters</button></div>` : ''}
+  `;
+}
+
 function applyFilters() {
-  const sort     = document.getElementById('f-sort')?.value || 'newest';
-  const person   = document.getElementById('f-person')?.value || '';
-  const severity = document.getElementById('f-severity')?.value || '';
-  const status   = document.getElementById('f-status')?.value || '';
-
-  const anyActive = sort !== 'newest' || person || severity || status;
-  const clearBtn = document.getElementById('filter-clear');
-  if (clearBtn) clearBtn.style.display = anyActive ? 'inline-block' : 'none';
-
   let tickets = [..._allTickets];
 
-  // Filter by person
-  if (person) {
-    tickets = tickets.filter(t => {
-      const name = (t.claimed_name || t.person_name || '').toLowerCase();
-      return name.includes(person.toLowerCase());
-    });
+  if (_filters.person) {
+    tickets = tickets.filter(t => (t.claimed_name || t.person_name || '') === _filters.person);
+  }
+  if (_filters.severity) {
+    tickets = tickets.filter(t => t.violation_type === _filters.severity);
+  }
+  if (_filters.status) {
+    tickets = tickets.filter(t => getTicketStatus(t).key === _filters.status);
   }
 
-  // Filter by severity/violation type
-  if (severity) tickets = tickets.filter(t => t.violation_type === severity);
-
-  // Filter by status key
-  if (status) tickets = tickets.filter(t => getTicketStatus(t).key === status);
-
-  // Sort
   tickets.sort((a, b) => {
-    if (sort === 'newest') return new Date(b.created_at) - new Date(a.created_at);
-    if (sort === 'oldest') return new Date(a.created_at) - new Date(b.created_at);
-    if (sort === 'person') return (a.person_name || '').localeCompare(b.person_name || '');
-    if (sort === 'points-high') return b.points - a.points;
-    if (sort === 'points-low') return a.points - b.points;
-    return 0;
+    if (_filters.sort === 'oldest') return new Date(a.created_at) - new Date(b.created_at);
+    if (_filters.sort === 'person') return (a.person_name || '').localeCompare(b.person_name || '');
+    if (_filters.sort === 'points-high') return b.points - a.points;
+    if (_filters.sort === 'points-low') return a.points - b.points;
+    return new Date(b.created_at) - new Date(a.created_at); // newest default
   });
 
-  // Status-based priority: appeals/replies always float to top regardless of sort
-  if (sort === 'newest' || sort === 'oldest') {
+  // Always float urgent items to top unless sorting explicitly by something else
+  if (_filters.sort === 'newest' || _filters.sort === 'oldest') {
     const urgent = tickets.filter(t => ['appeal','reply'].includes(getTicketStatus(t).key));
     const rest = tickets.filter(t => !['appeal','reply'].includes(getTicketStatus(t).key));
     tickets = [...urgent, ...rest];
@@ -795,24 +901,13 @@ function applyFilters() {
     : tickets.map(renderTicketRow).join('');
 }
 
-function clearFilters() {
-  const ids = ['f-sort','f-person','f-severity','f-status'];
-  ids.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = id === 'f-sort' ? 'newest' : '';
-  });
-  applyFilters();
-}
-
 if (document.getElementById('dashboard')) {
   API.getAllTickets().then(data => {
     if (!data || data.error) return;
     _allTickets = data.tickets || [];
     const people = data.people || [];
-
     _allTickets.forEach(t => { _ticketCache[t.id] = t; });
 
-    // Leaderboard
     const leaderboardEl = document.getElementById('leaderboard');
     leaderboardEl.innerHTML = people.length === 0
       ? '<tr><td colspan="2" style="color:var(--muted)">No records yet.</td></tr>'
@@ -820,40 +915,105 @@ if (document.getElementById('dashboard')) {
           .map((p, i) => `<tr><td><span class="leaderboard-rank">#${i + 1}</span> ${p.name}</td><td><strong style="color:var(--accent)">${p.total_points}</strong> pts</td></tr>`)
           .join('');
 
-    // Populate person filter dropdown
-    const personFilter = document.getElementById('f-person');
-    if (personFilter) {
-      const names = [...new Set(_allTickets.map(t => t.claimed_name || t.person_name).filter(n => n && n !== 'Unknown'))].sort();
-      names.forEach(name => {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        personFilter.appendChild(opt);
-      });
-    }
-
-    // Wire up filter controls
-    ['f-sort','f-person','f-severity','f-status'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.addEventListener('change', applyFilters);
-    });
-
-    // Initial render
+    renderFilterBar();
     applyFilters();
   });
 }
 
 async function resolveTicket(id, dismiss) {
-  const result = await API.resolve(id, dismiss);
-  if (result.success) location.reload();
-  else alert('Failed to update ticket.');
+  // Called directly (non-appeal) or from appeal modal — show confirm modal
+  showResolveModal(id, dismiss ? 'dismiss' : 'resolve');
+}
+
+function showResolveModal(id, defaultAction) {
+  const existing = document.getElementById('resolve-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'resolve-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.innerHTML = `
+    <div style="background:var(--white);max-width:480px;width:100%;border-top:4px solid var(--blue);">
+      <div style="background:var(--blue);color:var(--white);padding:14px 18px;">
+        <div style="font-size:16px;font-weight:700;">Close Ticket</div>
+        <div style="font-size:12px;opacity:0.75;margin-top:2px;">Choose how to close this ticket</div>
+      </div>
+      <div style="padding:18px;display:flex;flex-direction:column;gap:12px;">
+
+        <div id="rm-resolve" onclick="selectResolveAction('resolve')" style="border:2px solid var(--border);padding:14px;cursor:pointer;transition:border-color 0.1s;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--success);flex-shrink:0;display:flex;align-items:center;justify-content:center;" id="rm-dot-resolve"></div>
+            <div>
+              <div style="font-weight:700;color:var(--success);font-size:14px;">Resolve</div>
+              <div style="font-size:13px;color:var(--muted);margin-top:2px;">Ticket is closed. Points stay on record. Use when the violation stands and is now handled.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="rm-dismiss" onclick="selectResolveAction('dismiss')" style="border:2px solid var(--border);padding:14px;cursor:pointer;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--blue);flex-shrink:0;display:flex;align-items:center;justify-content:center;" id="rm-dot-dismiss"></div>
+            <div>
+              <div style="font-weight:700;color:var(--blue);font-size:14px;">Dismiss</div>
+              <div style="font-size:13px;color:var(--muted);margin-top:2px;">Ticket is closed and points are removed. Use when the citation was a mistake or the appeal was valid.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="rm-decline" onclick="selectResolveAction('decline')" style="border:2px solid var(--border);padding:14px;cursor:pointer;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;" id="rm-dot-decline"></div>
+            <div>
+              <div style="font-weight:700;color:var(--accent);font-size:14px;">Decline Appeal</div>
+              <div style="font-size:13px;color:var(--muted);margin-top:2px;">Appeal is rejected. Points stay, ticket remains active. Use when the appeal was invalid or insufficient.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:4px;">
+          <button id="rm-confirm-btn" onclick="confirmResolveAction('${id}')" style="padding:10px 20px;font-size:14px;">Confirm</button>
+          <button class="secondary" onclick="document.getElementById('resolve-modal').remove()" style="padding:10px 20px;font-size:14px;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  selectResolveAction(defaultAction || 'resolve');
+}
+
+let _selectedResolveAction = 'resolve';
+function selectResolveAction(action) {
+  _selectedResolveAction = action;
+  const colors = { resolve: 'var(--success)', dismiss: 'var(--blue)', decline: 'var(--accent)' };
+  ['resolve','dismiss','decline'].forEach(a => {
+    const row = document.getElementById(`rm-${a}`);
+    const dot = document.getElementById(`rm-dot-${a}`);
+    if (!row) return;
+    if (a === action) {
+      row.style.borderColor = colors[a];
+      row.style.background = 'var(--blue-light)';
+      dot.style.background = colors[a];
+    } else {
+      row.style.borderColor = 'var(--border)';
+      row.style.background = 'transparent';
+      dot.style.background = 'transparent';
+    }
+  });
+}
+
+async function confirmResolveAction(id) {
+  const btn = document.getElementById('rm-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Working...'; }
+  let result;
+  if (_selectedResolveAction === 'resolve') result = await API.resolve(id, false);
+  else if (_selectedResolveAction === 'dismiss') result = await API.resolve(id, true);
+  else if (_selectedResolveAction === 'decline') result = await API.declineAppeal(id);
+  if (result?.success) { document.getElementById('resolve-modal')?.remove(); location.reload(); }
+  else { if (btn) { btn.disabled = false; btn.textContent = 'Confirm'; } alert(result?.error || 'Something went wrong.'); }
 }
 
 async function declineAppeal(id) {
-  if (!confirm('Decline this appeal? Points will remain.')) return;
-  const result = await API.declineAppeal(id);
-  if (result.success) location.reload();
-  else alert('Failed to decline appeal.');
+  showResolveModal(id, 'decline');
 }
 
 async function lockThread(id) {
