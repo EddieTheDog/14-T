@@ -114,7 +114,23 @@ async function compressImage(file, maxWidth = 1000, quality = 0.7) {
         let w = img.width, h = img.height;
         if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
         canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+
+        // Timestamp watermark
+        const now = new Date();
+        const stamp = now.toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        const fontSize = Math.max(12, Math.round(w * 0.025));
+        ctx.font = `bold ${fontSize}px monospace`;
+        const padding = 8;
+        const textW = ctx.measureText(stamp).width;
+        // Background bar
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(0, 0, textW + padding * 2, fontSize + padding * 2);
+        // Text
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(stamp, padding, fontSize + padding - 2);
+
         resolve(canvas.toDataURL('image/jpeg', quality));
       };
       img.onerror = reject;
@@ -1200,6 +1216,7 @@ async function submitModalResponse(id, lock) {
 if (document.getElementById('print-view')) {
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id');
+  const variant = params.get('variant') || 'auto'; // auto, standard, removal, unknown
 
   const tryData = async () => {
     const cached = sessionStorage.getItem('last_ticket');
@@ -1214,26 +1231,118 @@ if (document.getElementById('print-view')) {
     const url = `${base}/ticket.html?id=${t.id}`;
     const dateStr = new Date(t.created_at).toLocaleString();
 
-    document.getElementById('print-view').innerHTML = `
-      <div style="width:80mm;margin:0 auto;font-size:11px;font-family:monospace;">
-        <div style="text-align:center;font-size:16px;font-weight:bold;letter-spacing:3px;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px;">14-T CITATION</div>
-        <div style="margin-bottom:4px;"><strong>NAME:</strong> ${t.person_name}</div>
-        <div style="margin-bottom:4px;"><strong>LOCATION:</strong> ${t.location}</div>
-        ${t.item_name ? `<div style="margin-bottom:4px;"><strong>ITEM:</strong> ${t.item_name}</div>` : ''}
-        <div style="margin-bottom:4px;"><strong>DATE:</strong> ${dateStr}</div>
-        <div style="border-top:1px solid #000;margin-top:10px;padding-top:10px;text-align:center;">
-          <div id="qr-code" style="display:inline-block;"></div>
-          <div style="font-size:9px;margin-top:6px;word-break:break-all;">${url}</div>
-          <div style="margin-top:6px;font-size:10px;font-style:italic;">Scan to view your citation</div>
-        </div>
+    // Determine which variant to show
+    let activeVariant = variant;
+    if (activeVariant === 'auto') {
+      if (t.removal_notice) activeVariant = 'removal';
+      else if (t.is_unknown) activeVariant = 'unknown';
+      else activeVariant = 'standard';
+    }
+
+    const qrId = (suffix) => `qr-code-${suffix}`;
+
+    const qrBlock = (suffix) => `
+      <div style="border-top:1px dashed #000;margin-top:10px;padding-top:10px;text-align:center;">
+        <div id="${qrId(suffix)}" style="display:inline-block;"></div>
+        <div style="font-size:9px;margin-top:5px;word-break:break-all;">${url}</div>
+        <div style="font-size:9px;margin-top:3px;font-style:italic;">Scan to view this citation</div>
       </div>`;
 
+    // ── RECEIPT: STANDARD ───────────────────────────────────────────────────
+    const receiptStandard = `
+      <div class="receipt-sheet">
+        <div style="text-align:center;letter-spacing:3px;font-size:15px;font-weight:bold;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:8px;">14-T CITATION</div>
+        <div class="r-row"><span class="r-label">NAME</span><span>${t.is_unknown ? 'UNKNOWN' : t.person_name}</span></div>
+        <div class="r-row"><span class="r-label">LOCATION</span><span>${t.location}</span></div>
+        ${t.item_name ? `<div class="r-row"><span class="r-label">ITEM</span><span>${t.item_name}</span></div>` : ''}
+        <div class="r-row"><span class="r-label">DATE</span><span>${dateStr}</span></div>
+        ${qrBlock('std')}
+      </div>`;
+
+    // ── RECEIPT: REMOVAL NOTICE ─────────────────────────────────────────────
+    const deadlineText = t.removal_deadline ? formatDeadline(t.removal_deadline, t.created_at).toUpperCase() : 'IMMEDIATELY';
+    const receiptRemoval = `
+      <div class="receipt-sheet">
+        <div style="text-align:center;letter-spacing:2px;font-size:13px;font-weight:bold;border-bottom:2px solid #000;padding-bottom:5px;margin-bottom:8px;">14-T CITATION</div>
+        <div style="border:2px solid #000;padding:8px;margin-bottom:8px;text-align:center;">
+          <div style="font-size:11px;font-weight:bold;letter-spacing:1px;">⚠ REMOVAL NOTICE ⚠</div>
+          <div style="font-size:10px;margin-top:3px;">THIS ITEM MUST BE REMOVED</div>
+          <div style="font-size:12px;font-weight:bold;margin-top:3px;border-top:1px solid #000;padding-top:4px;">${deadlineText}</div>
+          ${t.removal_note ? `<div style="font-size:9px;margin-top:3px;">${t.removal_note}</div>` : ''}
+        </div>
+        <div class="r-row"><span class="r-label">LOCATION</span><span>${t.location}</span></div>
+        ${t.item_name ? `<div class="r-row"><span class="r-label">ITEM</span><span>${t.item_name}</span></div>` : ''}
+        ${!t.is_unknown ? `<div class="r-row"><span class="r-label">ISSUED TO</span><span>${t.person_name}</span></div>` : ''}
+        <div class="r-row"><span class="r-label">DATE</span><span>${dateStr}</span></div>
+        <div style="font-size:9px;text-align:center;margin-top:6px;border-top:1px dashed #000;padding-top:6px;">Failure to comply may result in relocation of this item.</div>
+        ${qrBlock('rem')}
+      </div>`;
+
+    // ── RECEIPT: UNKNOWN / ABANDONED ───────────────────────────────────────
+    const receiptUnknown = `
+      <div class="receipt-sheet">
+        <div style="text-align:center;letter-spacing:2px;font-size:13px;font-weight:bold;border-bottom:2px solid #000;padding-bottom:5px;margin-bottom:8px;">14-T CITATION</div>
+        <div style="border:1px solid #000;padding:8px;margin-bottom:8px;text-align:center;font-size:10px;">
+          <div style="font-weight:bold;font-size:11px;letter-spacing:1px;">OWNER UNKNOWN</div>
+          <div style="margin-top:3px;">If this item belongs to you, scan the QR code to claim this citation and view your options.</div>
+        </div>
+        <div class="r-row"><span class="r-label">LOCATION</span><span>${t.location}</span></div>
+        ${t.item_name ? `<div class="r-row"><span class="r-label">ITEM</span><span>${t.item_name}</span></div>` : ''}
+        <div class="r-row"><span class="r-label">DATE</span><span>${dateStr}</span></div>
+        ${t.removal_notice ? `
+        <div style="border:1px dashed #000;padding:6px;margin-top:8px;text-align:center;font-size:9px;font-weight:bold;">
+          ⚠ REMOVAL NOTICE: MUST BE REMOVED ${deadlineText}
+        </div>` : ''}
+        ${qrBlock('unk')}
+      </div>`;
+
+    // Tab bar for switching variants
+    const variants = [
+      { key: 'standard', label: 'Standard' },
+      { key: 'removal', label: 'Removal Notice' },
+      { key: 'unknown', label: 'Unknown / Abandoned' },
+    ];
+
+    document.getElementById('print-view').innerHTML = `
+      <style>
+        .receipt-sheet { width:72mm; margin:0 auto; font-size:10px; font-family:monospace; line-height:1.4; }
+        .r-row { display:flex; justify-content:space-between; gap:8px; margin-bottom:3px; }
+        .r-label { font-weight:bold; white-space:nowrap; }
+        .variant-tab { padding:6px 14px; font-size:12px; cursor:pointer; border:1px solid var(--border); background:var(--white); font-family:inherit; }
+        .variant-tab.active { background:var(--blue); color:var(--white); border-color:var(--blue); font-weight:700; }
+        @media print { .no-print { display:none !important; } }
+      </style>
+      <div class="no-print" style="margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Receipt Type</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${variants.map(v => `<button class="variant-tab ${activeVariant === v.key ? 'active' : ''}" onclick="switchVariant('${v.key}')">${v.label}</button>`).join('')}
+        </div>
+      </div>
+      <div id="receipt-standard" style="${activeVariant === 'standard' ? '' : 'display:none'}">${receiptStandard}</div>
+      <div id="receipt-removal"  style="${activeVariant === 'removal'  ? '' : 'display:none'}">${receiptRemoval}</div>
+      <div id="receipt-unknown"  style="${activeVariant === 'unknown'  ? '' : 'display:none'}">${receiptUnknown}</div>
+    `;
+
+    // QR codes
     const script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
     script.onload = () => {
-      new QRCode(document.getElementById('qr-code'), { text: url, width: 160, height: 160, colorDark: '#000000', colorLight: '#ffffff' });
-      setTimeout(() => window.print(), 800);
+      ['std','rem','unk'].forEach(suffix => {
+        const el = document.getElementById(`qr-code-${suffix}`);
+        if (el) new QRCode(el, { text: url, width: 140, height: 140, colorDark: '#000000', colorLight: '#ffffff' });
+      });
+      setTimeout(() => window.print(), 900);
     };
     document.head.appendChild(script);
+  });
+}
+
+function switchVariant(key) {
+  ['standard','removal','unknown'].forEach(k => {
+    const el = document.getElementById(`receipt-${k}`);
+    if (el) el.style.display = k === key ? '' : 'none';
+  });
+  document.querySelectorAll('.variant-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(key === 'unknown' ? 'unknown' : key));
   });
 }
