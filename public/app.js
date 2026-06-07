@@ -839,6 +839,7 @@ function renderFullTicket(container, t, isIssuerView) {
   log.push({ time: t.created_at, msg: 'Ticket issued' });
   if (t.removal_notice) log.push({ time: null, msg: `Removal notice attached — ${formatDeadline(t.removal_deadline, t.created_at)}` });
   if (t.item_removed_at) log.push({ time: t.item_removed_at, msg: 'Recipient reported item removed — pending verification' });
+  if (t.issuer_removed_at) log.push({ time: t.issuer_removed_at, msg: 'Item relocated by issuer' });
   if (t.appeal_flagged && t.appeal_note) log.push({ time: null, msg: 'Appeal filed by recipient' });
   if (t.appeal_response) log.push({ time: null, msg: 'Response sent by issuer' });
   if (t.appeal_declined) log.push({ time: null, msg: 'Appeal declined by issuer' });
@@ -899,22 +900,49 @@ function renderFullTicket(container, t, isIssuerView) {
             This item must be removed${t.removal_deadline ? ` — <strong>${formatDeadline(t.removal_deadline, t.created_at)}</strong>` : ''}.
           </div>
           ${t.removal_note ? `<div style="font-size:13px;color:var(--muted);margin-top:6px;">${t.removal_note}</div>` : ''}
-          <div style="font-size:12px;color:var(--accent);margin-top:8px;font-weight:600;">Failure to comply may result in relocation of the item.</div>
-          ${!isIssuerView && t.status !== 'resolved' && !t.item_removed_at ? `
+
+          ${t.issuer_removed_at ? `
+            <div style="margin-top:10px;background:#fde8e8;border:1px solid var(--accent);padding:10px;">
+              <div style="font-size:13px;font-weight:700;color:var(--accent);">⚠ Item Has Been Relocated by Issuer</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px;">Relocated on ${new Date(t.issuer_removed_at).toLocaleString()}</div>
+              ${t.issuer_removed_note ? `<div style="font-size:13px;margin-top:6px;">${t.issuer_removed_note}</div>` : ''}
+              ${!isIssuerView ? `
+                <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--accent);font-size:13px;">
+                  To retrieve your item, call <strong><a href="tel:8185158076" style="color:var(--accent);">(818) 515-8076</a></strong> for more information.
+                </div>` : ''}
+            </div>` : `
+            <div style="font-size:12px;color:var(--accent);margin-top:8px;font-weight:600;">Failure to comply may result in relocation of the item.</div>`}
+
+          ${!isIssuerView && t.status !== 'resolved' && !t.item_removed_at && !t.issuer_removed_at ? `
             <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;">
               <button onclick="submitItemRemoved('${t.id}')" style="background:#2a7a2a;color:#fff;padding:10px 18px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">
                 ✓ I Have Removed the Item
               </button>
               <div style="font-size:11px;color:var(--muted);margin-top:6px;">The issuer will be notified to verify. Points may be waived if confirmed.</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">For questions, call <a href="tel:8185158076" style="color:var(--blue);">(818) 515-8076</a>.</div>
             </div>` : ''}
-          ${t.item_removed_at ? `
+
+          ${!isIssuerView && t.item_removed_at && !t.issuer_removed_at ? `
             <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;">
-              <strong style="color:var(--success);">✓ Item Removed</strong> — Reported ${new Date(t.item_removed_at).toLocaleString()}. Pending issuer verification.
+              <strong style="color:var(--success);">✓ Item Removal Reported</strong> — ${new Date(t.item_removed_at).toLocaleString()}. Pending issuer verification.
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">For questions, call <a href="tel:8185158076" style="color:var(--blue);">(818) 515-8076</a>.</div>
             </div>` : ''}
-          ${isIssuerView && t.item_removed_at && t.status !== 'resolved' ? `
-            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-              <button onclick="verifyItemRemoved('${t.id}', true)" style="background:var(--success);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;">✓ Confirmed — Close with No Points</button>
-              <button onclick="verifyItemRemoved('${t.id}', false)" style="background:var(--accent);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;">✗ Not Removed — Keep Points</button>
+
+          ${isIssuerView && t.item_removed_at && !t.issuer_removed_at && t.status !== 'resolved' ? `
+            <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;margin-bottom:8px;">
+              <div style="font-size:13px;font-weight:700;color:var(--success);">✓ Recipient says item was removed — ${new Date(t.item_removed_at).toLocaleString()}</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+              <button onclick="verifyItemRemoved('${t.id}', true)" style="background:var(--success);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;font-weight:600;">✓ Confirmed — Close, No Points</button>
+              <button onclick="verifyItemRemoved('${t.id}', false)" style="background:var(--accent);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;">✗ Item Still There — Keep Points</button>
+            </div>` : ''}
+
+          ${isIssuerView && !t.item_removed_at && !t.issuer_removed_at && t.status !== 'resolved' ? `
+            <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;">
+              <button onclick="openIssuerRemoveModal('${t.id}')" style="background:#7b3f00;color:#fff;padding:8px 16px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">
+                📷 I Removed the Item — Take Photo & Close
+              </button>
+              <div style="font-size:11px;color:var(--muted);margin-top:6px;">Deadline passed and item wasn't moved. Take a photo as proof and close the ticket.</div>
             </div>` : ''}
         </div>` : ''}
 
@@ -941,10 +969,92 @@ async function submitItemRemoved(id) {
 }
 
 async function verifyItemRemoved(id, confirmed) {
-  // confirmed = true → dismiss (no points), false → keep points and mark not removed
   const result = await API.resolve(id, confirmed);
   if (result.success) location.reload();
   else alert(result.error || 'Failed to update.');
+}
+
+function openIssuerRemoveModal(id) {
+  const existing = document.getElementById('issuer-remove-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'issuer-remove-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.innerHTML = `
+    <div style="background:var(--white);max-width:480px;width:100%;border-top:4px solid #7b3f00;">
+      <div style="background:#7b3f00;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:15px;font-weight:700;">📷 Mark Item as Relocated</div>
+          <div style="font-size:12px;opacity:0.8;margin-top:2px;">Take a photo as proof and close the ticket</div>
+        </div>
+        <button onclick="document.getElementById('issuer-remove-modal').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:4px 10px;font-size:13px;cursor:pointer;">✕</button>
+      </div>
+      <div style="padding:18px;">
+        <div id="ir-msg"></div>
+        <div class="field-group">
+          <label for="ir-photo">Photo of Item Removed / Location <span class="req">*</span></label>
+          <input type="file" id="ir-photo" accept="image/*" capture="environment" required>
+          <div id="ir-photo-preview" style="margin-top:6px;"></div>
+        </div>
+        <div class="field-group">
+          <label for="ir-note">Note <span class="opt">(optional)</span></label>
+          <input type="text" id="ir-note" placeholder="e.g. Moved to garage, Left outside door">
+        </div>
+        <div style="background:#fff3cd;border:1px solid #e6a000;padding:10px;font-size:12px;margin-bottom:14px;">
+          This will close the ticket. Points remain on record. The recipient will see that the item was relocated and will be shown the contact number to retrieve it.
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button onclick="submitIssuerRemoved('${id}')" style="background:#7b3f00;color:#fff;padding:10px 18px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">Confirm & Close Ticket</button>
+          <button class="secondary" onclick="document.getElementById('issuer-remove-modal').remove()" style="padding:10px 16px;font-size:13px;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+
+  // Preview photo
+  modal.querySelector('#ir-photo').addEventListener('change', function() {
+    const file = this.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        document.getElementById('ir-photo-preview').innerHTML = `<img src="${e.target.result}" style="width:100%;max-height:180px;object-fit:cover;border:1px solid var(--border);">`;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+async function submitIssuerRemoved(id) {
+  const photoFile = document.getElementById('ir-photo').files[0];
+  const msgEl = document.getElementById('ir-msg');
+  if (!photoFile) {
+    msgEl.className = 'msg error'; msgEl.textContent = 'A photo is required.'; msgEl.style.display = 'block';
+    return;
+  }
+  const btn = document.querySelector('#issuer-remove-modal button[onclick^="submitIssuerRemoved"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Submitting...'; }
+
+  let photoBase64 = null;
+  try { photoBase64 = await compressImage(photoFile); } catch {}
+
+  const note = document.getElementById('ir-note').value.trim() || null;
+
+  const res = await fetch('/api/issuer-removed', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, photo_base64: photoBase64, note })
+  });
+  const result = await res.json();
+  if (result.success) {
+    document.getElementById('issuer-remove-modal').remove();
+    location.reload();
+  } else {
+    msgEl.className = 'msg error'; msgEl.textContent = result.error || 'Failed.'; msgEl.style.display = 'block';
+    if (btn) { btn.disabled = false; btn.textContent = 'Confirm & Close Ticket'; }
+  }
 }
 
 async function submitAppeal(id) {
