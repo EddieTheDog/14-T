@@ -785,7 +785,13 @@ function renderFullTicket(container, t, isIssuerView) {
   // Status message — single, non-duplicating
   let statusMsg = '';
   if (t.status === 'resolved') {
-    statusMsg = '<div class="msg ok" style="display:block;margin-top:16px;">This ticket has been resolved.</div>';
+    if (t.issuer_removed_at) {
+      statusMsg = '<div class="msg error" style="display:block;margin-top:16px;background:#fde8e8;border-left:4px solid var(--accent);">This item has been impounded.</div>';
+    } else if (t.item_removed_at) {
+      statusMsg = '<div class="msg ok" style="display:block;margin-top:16px;">Item removal has been verified. This ticket is closed.</div>';
+    } else {
+      statusMsg = '<div class="msg ok" style="display:block;margin-top:16px;">This ticket has been resolved.</div>';
+    }
   } else if (t.appeal_declined) {
     statusMsg = '<div class="msg error" style="display:block;margin-top:16px;">Appeal declined — points remain.</div>';
   } else if (t.appeal_response_locked || t.status === 'locked') {
@@ -793,16 +799,25 @@ function renderFullTicket(container, t, isIssuerView) {
   }
 
   // Appeal action section (recipient only)
+  // Allow appeal even on resolved tickets that have a removal notice — they can contest the impound
+  const canAppeal = !isIssuerView
+    && !t.appeal_declined
+    && !t.appeal_response_locked
+    && t.status !== 'locked'
+    && !(t.status === 'resolved' && !t.removal_notice); // can't appeal plain resolved, only impound
+
   let appealSection = '';
-  if (!isIssuerView && t.status !== 'resolved' && !t.appeal_declined && !t.appeal_response_locked && t.status !== 'locked') {
+  if (canAppeal) {
     if (!t.appeal_flagged) {
+      const isImpound = t.issuer_removed_at && t.status === 'resolved';
       appealSection = `
         <hr class="divider">
-        <h2>File an Appeal</h2>
+        <h2>${isImpound ? 'Contest Impound' : 'File an Appeal'}</h2>
+        ${isImpound ? `<div style="font-size:13px;color:var(--muted);margin-bottom:12px;">If you believe this item was wrongly impounded, you can contest it below.</div>` : ''}
         <div id="appeal-msg"></div>
         <div class="field-group">
           <label for="appeal-note">Explanation <span class="req">*</span></label>
-          <textarea id="appeal-note" placeholder="Explain your situation..."></textarea>
+          <textarea id="appeal-note" placeholder="${isImpound ? 'Explain why this impound should be contested...' : 'Explain your situation...'}"></textarea>
         </div>
         <div class="field-group">
           <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
@@ -814,7 +829,7 @@ function renderFullTicket(container, t, isIssuerView) {
             I confirm this citation was issued to me and my information is accurate.
           </label>
         </div>
-        <button onclick="submitAppeal('${t.id}')">Submit Appeal</button>`;
+        <button onclick="submitAppeal('${t.id}')">${isImpound ? 'Submit Contest' : 'Submit Appeal'}</button>`;
     } else if (t.appeal_flagged && t.appeal_response) {
       appealSection = `
         <hr class="divider">
@@ -1223,15 +1238,15 @@ function renderTicketRow(t) {
   const viewAsBtn = `<a href="ticket.html?id=${t.id}&bypass=1" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:underline;display:block;margin-top:4px;">View as Recipient</a>`;
 
   let actionBtn = '—';
-  if (t.status !== 'resolved') {
-    if (t.item_removed_at) {
+  if (t.status !== 'resolved' || (t.removal_notice && t.appeal_flagged)) {
+    if (t.item_removed_at && t.status !== 'resolved') {
       actionBtn = `
         <div style="font-size:11px;color:var(--success);font-weight:600;margin-bottom:4px;">Recipient says removed</div>
         <button onclick="verifyItemRemoved('${t.id}', true)" style="padding:3px 8px;font-size:11px;background:var(--success);color:#fff;border:none;cursor:pointer;font-family:inherit;display:block;margin-bottom:3px;width:100%;">Confirm — Close</button>
         <button onclick="verifyItemRemoved('${t.id}', false)" style="padding:3px 8px;font-size:11px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-family:inherit;display:block;width:100%;">Item Still There</button>`;
     } else if (t.appeal_flagged) {
       actionBtn = `<button style="padding:4px 12px;font-size:12px;background:var(--blue)" onclick="openAppealModal('${t.id}')">View Appeal</button>`;
-    } else {
+    } else if (t.status !== 'resolved') {
       actionBtn = `<button class="success" style="padding:4px 10px;font-size:12px;display:block;margin-bottom:4px;" onclick="showResolveModal('${t.id}', 'resolve')">Resolve</button>`;
     }
   }
@@ -1612,9 +1627,16 @@ function openAppealModal(id) {
     </div>` : '';
 
   let actionBtns = '';
-  if (t.status !== 'resolved') {
-    actionBtns += `<button class="success" style="padding:8px 16px;font-size:13px;" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
-    actionBtns += ` <button class="secondary" style="padding:8px 16px;font-size:13px;" onclick="resolveTicket('${t.id}', true)">Dismiss (Remove Points)</button>`;
+  // Show action buttons if ticket isn't fully closed, OR if it's resolved but has an active contest
+  const canAct = t.status !== 'resolved' || (t.removal_notice && t.appeal_flagged);
+  if (canAct) {
+    if (t.status !== 'resolved') {
+      actionBtns += `<button class="success" style="padding:8px 16px;font-size:13px;" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
+      actionBtns += ` <button class="secondary" style="padding:8px 16px;font-size:13px;" onclick="resolveTicket('${t.id}', true)">Dismiss (Remove Points)</button>`;
+    } else {
+      // Resolved impound contest — can adjust points or reopen
+      actionBtns += `<button style="background:var(--success);color:#fff;padding:8px 16px;font-size:13px;border:none;cursor:pointer;font-family:inherit;" onclick="openPointsModal('${t.id}', 'verified')">Adjust Points</button>`;
+    }
     if (canDecline) actionBtns += ` <button class="danger" style="padding:8px 16px;font-size:13px;" onclick="declineAppeal('${t.id}')">Decline Appeal</button>`;
     if (canLock) actionBtns += ` <button style="background:#333;padding:8px 16px;font-size:13px;" onclick="lockThread('${t.id}')">Lock Thread</button>`;
   }
