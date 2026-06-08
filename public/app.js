@@ -753,135 +753,212 @@ function renderFullTicket(container, t, isIssuerView) {
   const displayName = t.claimed_name || t.person_name;
   const dateStr = new Date(t.created_at).toLocaleString();
   const penalInfo = t.penal_code ? PENAL_CODES.find(p => p.code === t.penal_code) : null;
+  const vtInfo = VIOLATION_TYPES[t.violation_type];
 
-  // Extra photos
+  // ── Extra photos ───────────────────────────────────────────────────────────
   let extraPhotosHtml = '';
   if (t.extra_photos) {
     try {
-      const extras = JSON.parse(t.extra_photos);
-      extraPhotosHtml = extras.map((src, i) =>
-        `<img class="ticket-photo" src="${src}" alt="Evidence photo ${i + 2}" style="margin-top:8px;">`
-      ).join('');
+      JSON.parse(t.extra_photos).forEach((src, i) => {
+        extraPhotosHtml += `<img class="ticket-photo" src="${src}" alt="Evidence photo ${i+2}" style="margin-top:8px;">`;
+      });
     } catch {}
   }
 
-  // Appeal thread — clean, no duplicates
+  // ── Removal notice block ───────────────────────────────────────────────────
+  // Shows the notice, tracks its state through all possible outcomes cleanly.
+  let removalBlock = '';
+  if (t.removal_notice) {
+    // --- What happened? Pick exactly one outcome state ---
+    let outcomeHtml = '';
+
+    if (t.issuer_removed_at) {
+      // Issuer physically removed/impounded the item
+      outcomeHtml = `
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e6a000;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:6px;">
+            Impounded — ${new Date(t.issuer_removed_at).toLocaleString()}
+          </div>
+          ${t.issuer_removed_photo ? `<img src="${t.issuer_removed_photo}" style="width:100%;max-height:260px;object-fit:cover;border:1px solid var(--border);display:block;margin-bottom:8px;">` : ''}
+          ${t.issuer_removed_note ? `<div style="font-size:13px;color:var(--text);margin-top:4px;">${t.issuer_removed_note}</div>` : ''}
+        </div>`;
+
+    } else if (t.item_removed_at && t.status === 'resolved') {
+      // Recipient reported removal and issuer judged it
+      const verified = t.points === 0;
+      outcomeHtml = verified
+        ? `<div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;font-weight:600;color:var(--success);">
+             Item removal confirmed — ticket closed.
+           </div>`
+        : `<div style="margin-top:10px;background:#fde8e8;border:1px solid var(--accent);padding:10px;font-size:13px;font-weight:600;color:var(--accent);">
+             Item was verified as not removed. Points remain on record.
+           </div>`;
+
+    } else if (t.item_removed_at && !t.issuer_removed_at) {
+      // Recipient reported removal — waiting on issuer
+      if (isIssuerView) {
+        // Issuer sees: claim + verify buttons + note field
+        outcomeHtml = `
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e6a000;">
+            <div style="background:#e8f5e8;border:1px solid var(--success);padding:10px;margin-bottom:10px;">
+              <div style="font-size:13px;font-weight:700;color:var(--success);">Recipient says item was removed</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px;">${new Date(t.item_removed_at).toLocaleString()}</div>
+              ${t.item_removed_note ? `<div style="font-size:13px;margin-top:6px;border-top:1px solid var(--success);padding-top:6px;">"${t.item_removed_note}"</div>` : ''}
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onclick="verifyItemRemoved('${t.id}', true)" style="background:var(--success);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;font-weight:600;">Confirmed — Item Gone</button>
+              <button onclick="verifyItemRemoved('${t.id}', false)" style="background:var(--accent);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;font-weight:600;">Item Still There</button>
+            </div>
+          </div>`;
+      } else {
+        // Recipient sees: their report is pending
+        outcomeHtml = `
+          <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;">
+            <strong style="color:var(--success);">Removal reported</strong> — ${new Date(t.item_removed_at).toLocaleString()}. Pending verification.
+            ${t.item_removed_note ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;">Your note: "${t.item_removed_note}"</div>` : ''}
+          </div>`;
+      }
+
+    } else if (t.status !== 'resolved') {
+      // Nothing has happened yet — show deadline warning and action button for recipient
+      outcomeHtml = `<div style="font-size:12px;color:var(--accent);margin-top:8px;font-weight:600;">Failure to comply may result in the item being impounded.</div>`;
+      if (!isIssuerView) {
+        outcomeHtml += `
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e6a000;">
+            <div id="item-removed-msg"></div>
+            <div class="field-group" style="margin-bottom:8px;">
+              <label for="item-removed-note" style="font-size:12px;">Note <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+              <input type="text" id="item-removed-note" placeholder="e.g. Moved to my room, Left by front door" style="font-size:13px;">
+            </div>
+            <button onclick="submitItemRemoved('${t.id}')" style="background:#2a7a2a;color:#fff;padding:10px 18px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">
+              I Have Removed the Item
+            </button>
+            <div style="font-size:11px;color:var(--muted);margin-top:6px;">The issuer will verify. Points may be reduced or waived.</div>
+          </div>`;
+      }
+    }
+
+    removalBlock = `
+      <div style="background:#fff3cd;border:2px solid #e6a000;padding:14px;margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#a07000;margin-bottom:4px;">Removal Notice</div>
+        <div style="font-size:14px;font-weight:600;color:#333;">
+          Must be removed${t.removal_deadline ? ` — <strong>${formatDeadline(t.removal_deadline, t.created_at)}</strong>` : ''}.
+        </div>
+        ${t.removal_note ? `<div style="font-size:13px;color:var(--muted);margin-top:4px;">${t.removal_note}</div>` : ''}
+        ${outcomeHtml}
+      </div>`;
+  }
+
+  // ── Appeal thread (read-only display) ──────────────────────────────────────
   let appealThread = '';
   if (t.appeal_note) {
-    appealThread += `<div class="appeal-box" style="margin-top:16px;">
-      <strong style="font-size:12px;color:#a07000;text-transform:uppercase;letter-spacing:0.5px;">Appeal Filed</strong>
-      <div style="margin-top:6px;">${t.appeal_note}</div>
-      ${t.appeal_photo_base64 ? `<img src="${t.appeal_photo_base64}" style="width:100%;margin-top:8px;border:1px solid var(--border);" alt="Appeal photo">` : ''}
-    </div>`;
+    appealThread += `
+      <div class="appeal-box" style="margin-top:16px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#a07000;margin-bottom:6px;">Appeal</div>
+        <div style="font-size:14px;">${t.appeal_note}</div>
+        ${t.appeal_photo_base64 ? `<img src="${t.appeal_photo_base64}" style="width:100%;margin-top:8px;border:1px solid var(--border);">` : ''}
+      </div>`;
   }
   if (t.appeal_response) {
-    appealThread += `<div style="background:#e8f5e8;border:1px solid var(--success);padding:14px;margin-top:8px;">
-      <strong style="font-size:12px;color:var(--success);text-transform:uppercase;letter-spacing:0.5px;">Response from Issuer</strong>
-      <div style="margin-top:6px;">${t.appeal_response}</div>
-      ${t.appeal_response_photo ? `<img src="${t.appeal_response_photo}" style="width:100%;margin-top:8px;border:1px solid var(--border);" alt="Response photo">` : ''}
-    </div>`;
+    appealThread += `
+      <div style="background:#e8f5e8;border:1px solid var(--success);padding:14px;margin-top:8px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--success);margin-bottom:6px;">Response</div>
+        <div style="font-size:14px;">${t.appeal_response}</div>
+        ${t.appeal_response_photo ? `<img src="${t.appeal_response_photo}" style="width:100%;margin-top:8px;border:1px solid var(--border);">` : ''}
+      </div>`;
   }
 
-  // Status message — single, non-duplicating
-  let statusMsg = '';
-  if (t.status === 'resolved') {
-    if (t.issuer_removed_at) {
-      statusMsg = '<div class="msg error" style="display:block;margin-top:16px;background:#fde8e8;border-left:4px solid var(--accent);">This item has been impounded.</div>';
-    } else if (t.item_removed_at) {
-      statusMsg = '<div class="msg ok" style="display:block;margin-top:16px;">Item removal has been verified. This ticket is closed.</div>';
-    } else {
-      statusMsg = '<div class="msg ok" style="display:block;margin-top:16px;">This ticket has been resolved.</div>';
-    }
+  // ── Status banner ──────────────────────────────────────────────────────────
+  let statusBanner = '';
+  if (t.status === 'resolved' && !t.issuer_removed_at && !t.item_removed_at) {
+    statusBanner = `<div class="msg ok" style="display:block;margin-top:16px;">This ticket has been resolved.</div>`;
   } else if (t.appeal_declined) {
-    statusMsg = '<div class="msg error" style="display:block;margin-top:16px;">Appeal declined — points remain.</div>';
+    statusBanner = `<div class="msg error" style="display:block;margin-top:16px;">Appeal declined — points remain.</div>`;
   } else if (t.appeal_response_locked || t.status === 'locked') {
-    statusMsg = '<div class="msg" style="display:block;margin-top:16px;background:var(--blue-light);color:var(--blue-dark);padding:14px;">This appeal thread has been closed.</div>';
+    statusBanner = `<div class="msg" style="display:block;margin-top:16px;background:var(--blue-light);color:var(--blue-dark);padding:14px;">Appeal thread closed.</div>`;
   }
 
-  // Appeal action section (recipient only)
-  // Allow appeal even on resolved tickets that have a removal notice — they can contest the impound
-  const canAppeal = !isIssuerView
-    && !t.appeal_declined
-    && !t.appeal_response_locked
-    && t.status !== 'locked'
-    && !(t.status === 'resolved' && !t.removal_notice)
-    // If they self-reported removal, they can't also file an appeal unless they already had one in progress
-    && !(t.item_removed_at && !t.appeal_flagged);
+  // ── Appeal form (recipient action) ─────────────────────────────────────────
+  // Rules: can't appeal if declined, locked, or already used the "I removed it" button without a prior appeal
+  const threadClosed = t.appeal_declined || t.appeal_response_locked || t.status === 'locked';
+  const selfReportedWithoutAppeal = t.item_removed_at && !t.appeal_flagged;
+  const plainResolved = t.status === 'resolved' && !t.removal_notice;
 
-  let appealSection = '';
-  if (canAppeal) {
+  let appealForm = '';
+  if (!isIssuerView && !threadClosed && !selfReportedWithoutAppeal && !plainResolved) {
+    const isImpound = t.issuer_removed_at && t.status === 'resolved';
+
     if (!t.appeal_flagged) {
-      const isImpound = t.issuer_removed_at && t.status === 'resolved';
-      appealSection = `
+      appealForm = `
         <hr class="divider">
         <h2>${isImpound ? 'Contest Impound' : 'File an Appeal'}</h2>
-        ${isImpound ? `<div style="font-size:13px;color:var(--muted);margin-bottom:12px;">If you believe this item was wrongly impounded, you can contest it below.</div>` : ''}
+        ${isImpound ? `<div style="font-size:13px;color:var(--muted);margin-bottom:12px;">You can contest this impound if you believe it was unjustified.</div>` : ''}
         <div id="appeal-msg"></div>
         <div class="field-group">
           <label for="appeal-note">Explanation <span class="req">*</span></label>
           <textarea id="appeal-note" placeholder="${isImpound ? 'Explain why this impound should be contested...' : 'Explain your situation...'}"></textarea>
         </div>
         <div class="field-group">
-          <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
+          <label for="appeal-photo">Photo <span class="opt">(optional)</span></label>
           <input type="file" id="appeal-photo" accept="image/*" capture="environment">
         </div>
-        <div class="field-group" style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;">
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;">
           <input type="checkbox" id="appeal-confirm" style="margin-top:3px;width:auto;flex-shrink:0;">
           <label for="appeal-confirm" style="font-weight:400;font-size:13px;margin-bottom:0;cursor:pointer;">
             I confirm this citation was issued to me and my information is accurate.
           </label>
         </div>
         <button onclick="submitAppeal('${t.id}')">${isImpound ? 'Submit Contest' : 'Submit Appeal'}</button>`;
-    } else if (t.appeal_flagged && t.appeal_response) {
-      appealSection = `
+
+    } else if (t.appeal_flagged && t.appeal_response && !t.appeal_response_locked) {
+      appealForm = `
         <hr class="divider">
-        <h2>Reply to Response</h2>
+        <h2>Reply</h2>
         <div id="appeal-msg"></div>
         <div class="field-group">
           <label for="appeal-note">Your Reply <span class="req">*</span></label>
           <textarea id="appeal-note" placeholder="Reply to the issuer's response..."></textarea>
         </div>
         <div class="field-group">
-          <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
+          <label for="appeal-photo">Photo <span class="opt">(optional)</span></label>
           <input type="file" id="appeal-photo" accept="image/*" capture="environment">
         </div>
         <button onclick="submitAppeal('${t.id}')">Send Reply</button>`;
+
     } else if (t.appeal_flagged && !t.appeal_response) {
-      appealSection = `<div class="appeal-box" style="margin-top:16px;">Your appeal has been submitted and is under review.</div>`;
+      appealForm = `<div class="appeal-box" style="margin-top:16px;">Appeal submitted — under review.</div>`;
     }
   }
 
-  // Activity log
-  const log = [];
-  log.push({ time: t.created_at, msg: 'Ticket issued' });
-  if (t.removal_notice) log.push({ time: null, msg: `Removal notice attached — ${formatDeadline(t.removal_deadline, t.created_at)}` });
-  if (t.item_removed_at) log.push({ time: t.item_removed_at, msg: 'Recipient reported item removed — pending verification' });
+  // ── Activity log ───────────────────────────────────────────────────────────
+  const log = [{ time: t.created_at, msg: 'Ticket issued' }];
+  if (t.removal_notice) log.push({ time: null, msg: `Removal notice — ${formatDeadline(t.removal_deadline, t.created_at)}` });
+  if (t.item_removed_at) log.push({ time: t.item_removed_at, msg: 'Recipient reported item removed' });
   if (t.issuer_removed_at) log.push({ time: t.issuer_removed_at, msg: 'Item impounded' });
-  if (t.appeal_flagged && t.appeal_note) log.push({ time: null, msg: 'Appeal filed by recipient' });
-  if (t.appeal_response) log.push({ time: null, msg: 'Response sent by issuer' });
-  if (t.appeal_declined) log.push({ time: null, msg: 'Appeal declined by issuer' });
-  if (t.appeal_response_locked) log.push({ time: null, msg: 'Appeal thread locked' });
-  if (t.status === 'resolved') log.push({ time: null, msg: 'Ticket resolved' });
+  if (t.appeal_flagged) log.push({ time: null, msg: 'Appeal filed' });
+  if (t.appeal_response) log.push({ time: null, msg: 'Response sent' });
+  if (t.appeal_declined) log.push({ time: null, msg: 'Appeal declined' });
+  if (t.appeal_response_locked) log.push({ time: null, msg: 'Thread locked' });
+  if (t.status === 'resolved') log.push({ time: null, msg: 'Ticket closed' });
 
   const logHtml = `
     <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:14px;">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;">Activity Log</div>
-      ${log.map(entry => `
+      ${log.map(e => `
         <div style="display:flex;gap:10px;margin-bottom:6px;font-size:12px;">
-          <span style="color:var(--muted);min-width:8px;">•</span>
-          <span>${entry.msg}${entry.time ? ` — <span style="color:var(--muted)">${new Date(entry.time).toLocaleString()}</span>` : ''}</span>
+          <span style="color:var(--muted);">•</span>
+          <span>${e.msg}${e.time ? ` — <span style="color:var(--muted)">${new Date(e.time).toLocaleString()}</span>` : ''}</span>
         </div>`).join('')}
     </div>`;
 
-  const vtInfo = VIOLATION_TYPES[t.violation_type];
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   container.innerHTML = `
     <div class="ticket-header">
       <div class="ticket-id">${t.id}</div>
       <div class="ticket-name">${displayName}</div>
       <div style="margin-top:6px;">
         <span class="badge ${t.violation_type}">${(vtInfo?.label || t.violation_type).toUpperCase()}</span>
-        ${t.removal_notice ? `&nbsp;<span class="badge removal">REMOVAL NOTICE</span>` : ''}
+        ${t.removal_notice ? `&nbsp;<span class="badge removal">REMOVAL</span>` : ''}
         &nbsp;
         <span class="badge ${t.appeal_declined ? 'severe' : t.status}">${t.appeal_declined ? 'DECLINED' : t.status.toUpperCase()}</span>
       </div>
@@ -910,56 +987,10 @@ function renderFullTicket(container, t, isIssuerView) {
           <div style="font-size:14px;white-space:pre-wrap;">${t.description}</div>
         </div>` : ''}
 
-      ${t.removal_notice ? `
-        <div style="background:#fff3cd;border:2px solid #e6a000;padding:14px;margin-bottom:16px;">
-          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#a07000;margin-bottom:6px;">Removal Notice Attached</div>
-          <div style="font-size:14px;font-weight:600;color:#333;">
-            This item must be removed${t.removal_deadline ? ` — <strong>${formatDeadline(t.removal_deadline, t.created_at)}</strong>` : ''}.
-          </div>
-          ${t.removal_note ? `<div style="font-size:13px;color:var(--muted);margin-top:6px;">${t.removal_note}</div>` : ''}
-
-          ${t.issuer_removed_at ? `
-            <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;">
-              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:6px;">Impounded — ${new Date(t.issuer_removed_at).toLocaleString()}</div>
-              ${t.issuer_removed_photo ? `<img src="${t.issuer_removed_photo}" style="width:100%;max-height:280px;object-fit:cover;border:1px solid var(--border);display:block;margin-bottom:8px;">` : ''}
-              ${t.issuer_removed_note ? `<div style="font-size:13px;color:var(--text);">${t.issuer_removed_note}</div>` : ''}
-            </div>` : `
-            <div style="font-size:12px;color:var(--accent);margin-top:8px;font-weight:600;">Failure to comply may result in the item being impounded.</div>`}
-
-          ${!isIssuerView && t.status !== 'resolved' && !t.item_removed_at && !t.issuer_removed_at ? `
-            <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;">
-              <button onclick="submitItemRemoved('${t.id}')" style="background:#2a7a2a;color:#fff;padding:10px 18px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">
-                I Have Removed the Item
-              </button>
-              <div style="font-size:11px;color:var(--muted);margin-top:6px;">The issuer will be notified to verify. Points may be waived if confirmed.</div>
-            </div>` : ''}
-
-          ${!isIssuerView && t.item_removed_at && !t.issuer_removed_at && t.status !== 'resolved' ? `
-            <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;">
-              <strong style="color:var(--success);">Item Removal Reported</strong> — ${new Date(t.item_removed_at).toLocaleString()}. Pending verification.
-            </div>` : ''}
-
-          ${!isIssuerView && t.item_removed_at && t.status === 'resolved' && !t.issuer_removed_at ? (() => {
-            // Resolved after self-report — check if points were removed (dismiss) or kept
-            // We use points === 0 as a proxy since dismiss zeroes them
-            return t.points === 0
-              ? `<div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;font-weight:600;color:var(--success);">Removal verified — ticket closed.</div>`
-              : `<div style="margin-top:10px;background:#fde8e8;border:1px solid var(--accent);padding:10px;font-size:13px;font-weight:600;color:var(--accent);">Item was verified as not removed. Points remain on record.</div>`;
-          })() : ''}
-
-          ${isIssuerView && t.item_removed_at && !t.issuer_removed_at && t.status !== 'resolved' ? `
-            <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;margin-bottom:8px;font-size:13px;font-weight:600;color:var(--success);">
-              Recipient says item was removed — ${new Date(t.item_removed_at).toLocaleString()}
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <button onclick="verifyItemRemoved('${t.id}', true)" style="background:var(--success);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;font-weight:600;">Confirmed — Item Gone</button>
-              <button onclick="verifyItemRemoved('${t.id}', false)" style="background:var(--accent);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;">Item Still There</button>
-            </div>` : ''}
-        </div>` : ''}
-
+      ${removalBlock}
       ${appealThread}
-      ${statusMsg}
-      ${appealSection}
+      ${statusBanner}
+      ${appealForm}
       ${logHtml}
     </div>
   `;
