@@ -31,7 +31,10 @@ export async function onRequest(context) {
     }
     if (ticket.status === 'locked') return new Response(JSON.stringify({ error: 'This appeal thread is closed.' }), { status: 400, headers });
 
-    // Allow a re-appeal only if issuer responded and left thread open
+    // If they already self-reported removal, they can't start a fresh appeal (existing ones continue)
+    if (ticket.item_removed_at && !ticket.appeal_flagged) {
+      return new Response(JSON.stringify({ error: 'You have already reported this item as removed.' }), { status: 400, headers });
+    }
     if (ticket.appeal_flagged && !ticket.appeal_response) {
       return new Response(JSON.stringify({ error: 'Appeal already submitted.' }), { status: 400, headers });
     }
