@@ -24,7 +24,11 @@ export async function onRequest(context) {
 
     const ticket = await env.DB.prepare(`SELECT * FROM tickets WHERE id = ?`).bind(id).first();
     if (!ticket) return new Response(JSON.stringify({ error: 'Ticket not found.' }), { status: 404, headers });
-    if (ticket.status === 'resolved') return new Response(JSON.stringify({ error: 'Ticket already resolved.' }), { status: 400, headers });
+
+    // Allow appeal on resolved removal-notice tickets (contesting an impound)
+    if (ticket.status === 'resolved' && !ticket.removal_notice) {
+      return new Response(JSON.stringify({ error: 'Ticket already resolved.' }), { status: 400, headers });
+    }
     if (ticket.status === 'locked') return new Response(JSON.stringify({ error: 'This appeal thread is closed.' }), { status: 400, headers });
 
     // Allow a re-appeal only if issuer responded and left thread open
