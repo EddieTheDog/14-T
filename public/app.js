@@ -839,7 +839,7 @@ function renderFullTicket(container, t, isIssuerView) {
   log.push({ time: t.created_at, msg: 'Ticket issued' });
   if (t.removal_notice) log.push({ time: null, msg: `Removal notice attached — ${formatDeadline(t.removal_deadline, t.created_at)}` });
   if (t.item_removed_at) log.push({ time: t.item_removed_at, msg: 'Recipient reported item removed — pending verification' });
-  if (t.issuer_removed_at) log.push({ time: t.issuer_removed_at, msg: 'Item relocated by issuer' });
+  if (t.issuer_removed_at) log.push({ time: t.issuer_removed_at, msg: 'Item impounded' });
   if (t.appeal_flagged && t.appeal_note) log.push({ time: null, msg: 'Appeal filed by recipient' });
   if (t.appeal_response) log.push({ time: null, msg: 'Response sent by issuer' });
   if (t.appeal_declined) log.push({ time: null, msg: 'Appeal declined by issuer' });
@@ -895,7 +895,7 @@ function renderFullTicket(container, t, isIssuerView) {
 
       ${t.removal_notice ? `
         <div style="background:#fff3cd;border:2px solid #e6a000;padding:14px;margin-bottom:16px;">
-          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#a07000;margin-bottom:6px;">⚠ Removal Notice Attached</div>
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#a07000;margin-bottom:6px;">Removal Notice Attached</div>
           <div style="font-size:14px;font-weight:600;color:#333;">
             This item must be removed${t.removal_deadline ? ` — <strong>${formatDeadline(t.removal_deadline, t.created_at)}</strong>` : ''}.
           </div>
@@ -903,46 +903,32 @@ function renderFullTicket(container, t, isIssuerView) {
 
           ${t.issuer_removed_at ? `
             <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;">
-              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:8px;">Item Removed — ${new Date(t.issuer_removed_at).toLocaleString()}</div>
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:6px;">Impounded — ${new Date(t.issuer_removed_at).toLocaleString()}</div>
               ${t.issuer_removed_photo ? `<img src="${t.issuer_removed_photo}" style="width:100%;max-height:280px;object-fit:cover;border:1px solid var(--border);display:block;margin-bottom:8px;">` : ''}
               ${t.issuer_removed_note ? `<div style="font-size:13px;color:var(--text);">${t.issuer_removed_note}</div>` : ''}
-              ${!isIssuerView ? `
-                <div style="margin-top:10px;font-size:13px;">
-                  To retrieve your item, call <strong><a href="tel:8185158076" style="color:var(--blue);">(818) 515-8076</a></strong>.
-                </div>` : ''}
             </div>` : `
-            <div style="font-size:12px;color:var(--accent);margin-top:8px;font-weight:600;">Failure to comply may result in relocation of the item.</div>`}
+            <div style="font-size:12px;color:var(--accent);margin-top:8px;font-weight:600;">Failure to comply may result in the item being impounded.</div>`}
 
           ${!isIssuerView && t.status !== 'resolved' && !t.item_removed_at && !t.issuer_removed_at ? `
             <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;">
               <button onclick="submitItemRemoved('${t.id}')" style="background:#2a7a2a;color:#fff;padding:10px 18px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">
-                ✓ I Have Removed the Item
+                I Have Removed the Item
               </button>
               <div style="font-size:11px;color:var(--muted);margin-top:6px;">The issuer will be notified to verify. Points may be waived if confirmed.</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:4px;">For questions, call <a href="tel:8185158076" style="color:var(--blue);">(818) 515-8076</a>.</div>
             </div>` : ''}
 
           ${!isIssuerView && t.item_removed_at && !t.issuer_removed_at ? `
             <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;">
-              <strong style="color:var(--success);">✓ Item Removal Reported</strong> — ${new Date(t.item_removed_at).toLocaleString()}. Pending issuer verification.
-              <div style="font-size:11px;color:var(--muted);margin-top:4px;">For questions, call <a href="tel:8185158076" style="color:var(--blue);">(818) 515-8076</a>.</div>
+              <strong style="color:var(--success);">Item Removal Reported</strong> — ${new Date(t.item_removed_at).toLocaleString()}. Pending verification.
             </div>` : ''}
 
           ${isIssuerView && t.item_removed_at && !t.issuer_removed_at && t.status !== 'resolved' ? `
-            <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;margin-bottom:8px;">
-              <div style="font-size:13px;font-weight:700;color:var(--success);">✓ Recipient says item was removed — ${new Date(t.item_removed_at).toLocaleString()}</div>
+            <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;margin-bottom:8px;font-size:13px;font-weight:600;color:var(--success);">
+              Recipient says item was removed — ${new Date(t.item_removed_at).toLocaleString()}
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-              <button onclick="verifyItemRemoved('${t.id}', true)" style="background:var(--success);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;font-weight:600;">✓ Confirmed — Close, No Points</button>
-              <button onclick="verifyItemRemoved('${t.id}', false)" style="background:var(--accent);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;">✗ Item Still There — Keep Points</button>
-            </div>` : ''}
-
-          ${isIssuerView && !t.item_removed_at && !t.issuer_removed_at && t.status !== 'resolved' ? `
-            <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;">
-              <button onclick="openIssuerRemoveModal('${t.id}')" class="secondary" style="padding:8px 16px;font-size:12px;font-weight:600;">
-                Mark as Removed
-              </button>
-              <div style="font-size:11px;color:var(--muted);margin-top:6px;">Deadline passed and item was not moved. Take a photo as proof and close the ticket.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onclick="verifyItemRemoved('${t.id}', true)" style="background:var(--success);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;font-weight:600;">Confirmed — Item Gone</button>
+              <button onclick="verifyItemRemoved('${t.id}', false)" style="background:var(--accent);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;">Item Still There</button>
             </div>` : ''}
         </div>` : ''}
 
@@ -969,9 +955,123 @@ async function submitItemRemoved(id) {
 }
 
 async function verifyItemRemoved(id, confirmed) {
-  const result = await API.resolve(id, confirmed);
-  if (result.success) location.reload();
-  else alert(result.error || 'Failed to update.');
+  if (confirmed) {
+    // Recipient says removed — offer points choice before closing
+    openPointsModal(id, 'verified');
+  } else {
+    // Still there — offer points choice
+    openPointsModal(id, 'notmoved');
+  }
+}
+
+function openPointsModal(id, context) {
+  const existing = document.getElementById('points-modal');
+  if (existing) existing.remove();
+
+  const t = _ticketCache[id];
+  const fullPoints = t ? t.points : 0;
+  const half = Math.ceil(fullPoints / 2);
+
+  const contextMsg = context === 'verified'
+    ? 'The recipient reported the item was removed. Choose how to handle their points.'
+    : 'The item was not moved by the deadline. Choose how to handle their points.';
+
+  const modal = document.createElement('div');
+  modal.id = 'points-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+  const options = [
+    { key: 'full', label: `Keep Full Points`, desc: `${fullPoints} pt${fullPoints !== 1 ? 's' : ''} remain on record.`, color: 'var(--accent)' },
+    ...(fullPoints > 1 ? [{ key: 'half', label: `Reduce Points`, desc: `Reduce to ${half} pt${half !== 1 ? 's' : ''} — partial credit for compliance.`, color: 'var(--warn)' }] : []),
+    { key: 'none', label: `Remove All Points`, desc: `0 pts — waive the fine entirely.`, color: 'var(--success)' },
+  ];
+
+  modal.innerHTML = `
+    <div style="background:var(--white);max-width:440px;width:100%;border-top:4px solid var(--blue);">
+      <div style="background:var(--blue);color:var(--white);padding:14px 18px;">
+        <div style="font-size:15px;font-weight:700;">How should points be handled?</div>
+        <div style="font-size:12px;opacity:0.75;margin-top:2px;">${contextMsg}</div>
+      </div>
+      <div style="padding:18px;display:flex;flex-direction:column;gap:10px;">
+        ${options.map(o => `
+          <div id="pm-${o.key}" onclick="selectPointsOption('${o.key}')" style="border:2px solid var(--border);padding:12px;cursor:pointer;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div id="pm-dot-${o.key}" style="width:16px;height:16px;border-radius:50%;border:2px solid ${o.color};flex-shrink:0;"></div>
+              <div>
+                <div style="font-weight:700;color:${o.color};font-size:14px;">${o.label}</div>
+                <div style="font-size:12px;color:var(--muted);margin-top:2px;">${o.desc}</div>
+              </div>
+            </div>
+          </div>`).join('')}
+        <div id="pm-msg"></div>
+        <div style="display:flex;gap:10px;margin-top:4px;">
+          <button id="pm-confirm-btn" onclick="confirmPointsAction('${id}', '${context}')" style="padding:10px 20px;font-size:14px;">Confirm & Close</button>
+          <button class="secondary" onclick="document.getElementById('points-modal').remove()" style="padding:10px 18px;font-size:14px;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  selectPointsOption('full');
+}
+
+let _selectedPointsOption = 'full';
+function selectPointsOption(key) {
+  _selectedPointsOption = key;
+  const t = _ticketCache[document.getElementById('pm-confirm-btn')?.getAttribute('onclick')?.match(/'([^']+)'/)?.[1]];
+  ['full','half','none'].forEach(k => {
+    const row = document.getElementById(`pm-${k}`);
+    const dot = document.getElementById(`pm-dot-${k}`);
+    if (!row) return;
+    const colors = { full: 'var(--accent)', half: 'var(--warn)', none: 'var(--success)' };
+    if (k === key) {
+      row.style.borderColor = colors[k];
+      row.style.background = 'var(--blue-light)';
+      dot.style.background = colors[k];
+    } else {
+      row.style.borderColor = 'var(--border)';
+      row.style.background = 'transparent';
+      dot.style.background = 'transparent';
+    }
+  });
+}
+
+async function confirmPointsAction(id, context) {
+  const btn = document.getElementById('pm-confirm-btn');
+  const msgEl = document.getElementById('pm-msg');
+  if (btn) { btn.disabled = true; btn.textContent = 'Working...'; }
+
+  const t = _ticketCache[id];
+  const fullPoints = t ? t.points : 0;
+  const half = Math.ceil(fullPoints / 2);
+
+  let result;
+  if (_selectedPointsOption === 'none') {
+    result = await API.resolve(id, true); // dismiss removes points
+  } else if (_selectedPointsOption === 'half' && fullPoints > 1) {
+    // Reduce points then resolve
+    const res = await fetch('/api/adjust-points', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, points: half })
+    });
+    const adj = await res.json();
+    if (!adj.success) {
+      msgEl.className = 'msg error'; msgEl.textContent = adj.error || 'Failed.'; msgEl.style.display = 'block';
+      if (btn) { btn.disabled = false; btn.textContent = 'Confirm & Close'; }
+      return;
+    }
+    result = await API.resolve(id, false);
+  } else {
+    result = await API.resolve(id, false); // keep full points
+  }
+
+  if (result?.success) { document.getElementById('points-modal')?.remove(); location.reload(); }
+  else {
+    msgEl.className = 'msg error'; msgEl.textContent = result?.error || 'Something went wrong.'; msgEl.style.display = 'block';
+    if (btn) { btn.disabled = false; btn.textContent = 'Confirm & Close'; }
+  }
 }
 
 function openIssuerRemoveModal(id) {
@@ -1133,9 +1233,6 @@ function renderTicketRow(t) {
       actionBtn = `<button style="padding:4px 12px;font-size:12px;background:var(--blue)" onclick="openAppealModal('${t.id}')">View Appeal</button>`;
     } else {
       actionBtn = `<button class="success" style="padding:4px 10px;font-size:12px;display:block;margin-bottom:4px;" onclick="showResolveModal('${t.id}', 'resolve')">Resolve</button>`;
-      if (t.removal_notice && !t.issuer_removed_at) {
-        actionBtn += `<button class="secondary" style="padding:3px 8px;font-size:11px;display:block;" onclick="openIssuerRemoveModal('${t.id}')">Mark as Removed</button>`;
-      }
     }
   }
 
@@ -1406,8 +1503,14 @@ function showResolveModal(id, defaultAction) {
 let _selectedResolveAction = 'resolve';
 function selectResolveAction(action) {
   _selectedResolveAction = action;
-const colors = { resolve: 'var(--success)', dismiss: 'var(--blue)', decline: 'var(--accent)', impound: '#7b3f00', notmoved: '#555' };
-['resolve','dismiss','decline','impound','notmoved'].forEach(a => {
+  const colors = {
+    resolve: 'var(--success)',
+    dismiss: 'var(--blue)',
+    decline: 'var(--accent)',
+    impound: '#7b3f00',
+    notmoved: '#555'
+  };
+  ['resolve','dismiss','decline','impound','notmoved'].forEach(a => {
     const row = document.getElementById(`rm-${a}`);
     const dot = document.getElementById(`rm-dot-${a}`);
     if (!row) return;
@@ -1426,16 +1529,26 @@ const colors = { resolve: 'var(--success)', dismiss: 'var(--blue)', decline: 'va
 async function confirmResolveAction(id) {
   const btn = document.getElementById('rm-confirm-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Working...'; }
-  let result;
+
   if (_selectedResolveAction === 'impound') {
+    // Close modal, open photo + points modal
     document.getElementById('resolve-modal')?.remove();
     openIssuerRemoveModal(id);
     return;
   }
-  if      (_selectedResolveAction === 'resolve')  result = await API.resolve(id, false);
-  else if (_selectedResolveAction === 'dismiss')  result = await API.resolve(id, true);
-  else if (_selectedResolveAction === 'decline')  result = await API.declineAppeal(id);
-  else if (_selectedResolveAction === 'notmoved') result = await API.resolve(id, false);
+
+  if (_selectedResolveAction === 'notmoved') {
+    // Close modal, open points choice modal
+    document.getElementById('resolve-modal')?.remove();
+    openPointsModal(id, 'notmoved');
+    return;
+  }
+
+  let result;
+  if (_selectedResolveAction === 'resolve') result = await API.resolve(id, false);
+  else if (_selectedResolveAction === 'dismiss') result = await API.resolve(id, true);
+  else if (_selectedResolveAction === 'decline') result = await API.declineAppeal(id);
+
   if (result?.success) { document.getElementById('resolve-modal')?.remove(); location.reload(); }
   else { if (btn) { btn.disabled = false; btn.textContent = 'Confirm'; } alert(result?.error || 'Something went wrong.'); }
 }
