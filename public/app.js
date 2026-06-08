@@ -1406,8 +1406,8 @@ function showResolveModal(id, defaultAction) {
 let _selectedResolveAction = 'resolve';
 function selectResolveAction(action) {
   _selectedResolveAction = action;
-  const colors = { resolve: 'var(--success)', dismiss: 'var(--blue)', decline: 'var(--accent)' };
-  ['resolve','dismiss','decline'].forEach(a => {
+const colors = { resolve: 'var(--success)', dismiss: 'var(--blue)', decline: 'var(--accent)', impound: '#7b3f00', notmoved: '#555' };
+['resolve','dismiss','decline','impound','notmoved'].forEach(a => {
     const row = document.getElementById(`rm-${a}`);
     const dot = document.getElementById(`rm-dot-${a}`);
     if (!row) return;
@@ -1427,9 +1427,15 @@ async function confirmResolveAction(id) {
   const btn = document.getElementById('rm-confirm-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Working...'; }
   let result;
-  if (_selectedResolveAction === 'resolve') result = await API.resolve(id, false);
-  else if (_selectedResolveAction === 'dismiss') result = await API.resolve(id, true);
-  else if (_selectedResolveAction === 'decline') result = await API.declineAppeal(id);
+  if (_selectedResolveAction === 'impound') {
+    document.getElementById('resolve-modal')?.remove();
+    openIssuerRemoveModal(id);
+    return;
+  }
+  if      (_selectedResolveAction === 'resolve')  result = await API.resolve(id, false);
+  else if (_selectedResolveAction === 'dismiss')  result = await API.resolve(id, true);
+  else if (_selectedResolveAction === 'decline')  result = await API.declineAppeal(id);
+  else if (_selectedResolveAction === 'notmoved') result = await API.resolve(id, false);
   if (result?.success) { document.getElementById('resolve-modal')?.remove(); location.reload(); }
   else { if (btn) { btn.disabled = false; btn.textContent = 'Confirm'; } alert(result?.error || 'Something went wrong.'); }
 }
