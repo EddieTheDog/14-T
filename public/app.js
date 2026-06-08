@@ -804,7 +804,9 @@ function renderFullTicket(container, t, isIssuerView) {
     && !t.appeal_declined
     && !t.appeal_response_locked
     && t.status !== 'locked'
-    && !(t.status === 'resolved' && !t.removal_notice); // can't appeal plain resolved, only impound
+    && !(t.status === 'resolved' && !t.removal_notice)
+    // If they self-reported removal, they can't also file an appeal unless they already had one in progress
+    && !(t.item_removed_at && !t.appeal_flagged);
 
   let appealSection = '';
   if (canAppeal) {
@@ -932,10 +934,18 @@ function renderFullTicket(container, t, isIssuerView) {
               <div style="font-size:11px;color:var(--muted);margin-top:6px;">The issuer will be notified to verify. Points may be waived if confirmed.</div>
             </div>` : ''}
 
-          ${!isIssuerView && t.item_removed_at && !t.issuer_removed_at ? `
+          ${!isIssuerView && t.item_removed_at && !t.issuer_removed_at && t.status !== 'resolved' ? `
             <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;">
               <strong style="color:var(--success);">Item Removal Reported</strong> — ${new Date(t.item_removed_at).toLocaleString()}. Pending verification.
             </div>` : ''}
+
+          ${!isIssuerView && t.item_removed_at && t.status === 'resolved' && !t.issuer_removed_at ? (() => {
+            // Resolved after self-report — check if points were removed (dismiss) or kept
+            // We use points === 0 as a proxy since dismiss zeroes them
+            return t.points === 0
+              ? `<div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;font-weight:600;color:var(--success);">Removal verified — ticket closed.</div>`
+              : `<div style="margin-top:10px;background:#fde8e8;border:1px solid var(--accent);padding:10px;font-size:13px;font-weight:600;color:var(--accent);">Item was verified as not removed. Points remain on record.</div>`;
+          })() : ''}
 
           ${isIssuerView && t.item_removed_at && !t.issuer_removed_at && t.status !== 'resolved' ? `
             <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;margin-bottom:8px;font-size:13px;font-weight:600;color:var(--success);">
