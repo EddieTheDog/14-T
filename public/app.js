@@ -851,25 +851,55 @@ function renderFullTicket(container, t, isIssuerView) {
     }
   }
 
-  // Activity log
+  // Parse issuer notes
+  let issuerNotes = [];
+  if (t.issuer_notes) { try { issuerNotes = JSON.parse(t.issuer_notes); } catch {} }
+
+  // Issuer notes display (styled like removal notice block)
+  const notesHtml = issuerNotes.length ? issuerNotes.map(n => `
+    <div style="background:var(--blue-light);border-left:4px solid var(--blue);padding:12px 14px;margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--blue-dark);margin-bottom:4px;">
+        Issuer Note${n.time ? ` — <span style="font-weight:400;color:var(--muted)">${new Date(n.time).toLocaleString()}</span>` : ''}
+        ${n.type === 'points' ? `<span style="background:var(--accent);color:#fff;padding:1px 6px;font-size:10px;margin-left:6px;">POINTS</span>` : ''}
+      </div>
+      <div style="font-size:13px;">${n.text}</div>
+    </div>`).join('') : '';
+
+  // Add note / attach removal UI (issuer bypass only)
+  const issuerActionsHtml = isIssuerView && t.status !== 'resolved' ? `
+    <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:10px;">Issuer Actions</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        <button class="secondary" style="padding:6px 12px;font-size:12px;" onclick="openAddNoteModal('${t.id}')">Add Note / Comment</button>
+        ${!t.removal_notice
+          ? `<button class="secondary" style="padding:6px 12px;font-size:12px;" onclick="openAttachRemovalModal('${t.id}')">Attach Removal Notice</button>`
+          : `<button class="secondary" style="padding:6px 12px;font-size:12px;border-color:var(--accent);color:var(--accent);" onclick="removeRemovalNotice('${t.id}')">Remove Removal Notice</button>`}
+      </div>
+    </div>` : '';
+
+  // Activity log — vertical stacked, mobile friendly
   const log = [];
-  log.push({ time: t.created_at, msg: 'Ticket issued' });
-  if (t.removal_notice) log.push({ time: null, msg: `Removal notice attached — ${formatDeadline(t.removal_deadline, t.created_at)}` });
-  if (t.item_removed_at) log.push({ time: t.item_removed_at, msg: 'Recipient reported item removed — pending verification' });
-  if (t.issuer_removed_at) log.push({ time: t.issuer_removed_at, msg: 'Item impounded' });
-  if (t.appeal_flagged && t.appeal_note) log.push({ time: null, msg: 'Appeal filed by recipient' });
-  if (t.appeal_response) log.push({ time: null, msg: 'Response sent by issuer' });
-  if (t.appeal_declined) log.push({ time: null, msg: 'Appeal declined by issuer' });
-  if (t.appeal_response_locked) log.push({ time: null, msg: 'Appeal thread locked' });
-  if (t.status === 'resolved') log.push({ time: null, msg: 'Ticket resolved' });
+  log.push({ time: t.created_at, msg: 'Ticket issued', color: 'var(--blue)' });
+  if (t.removal_notice) log.push({ time: null, msg: `Removal notice attached — ${formatDeadline(t.removal_deadline, t.created_at)}`, color: '#e6a000' });
+  issuerNotes.forEach(n => log.push({ time: n.time, msg: n.text, color: n.type === 'points' ? 'var(--accent)' : 'var(--blue-dark)' }));
+  if (t.item_removed_at) log.push({ time: t.item_removed_at, msg: 'Recipient reported item removed', color: 'var(--success)' });
+  if (t.issuer_removed_at) log.push({ time: t.issuer_removed_at, msg: 'Item impounded', color: '#7b3f00' });
+  if (t.appeal_flagged && t.appeal_note) log.push({ time: null, msg: 'Appeal filed by recipient', color: '#e6a000' });
+  if (t.appeal_response) log.push({ time: null, msg: 'Response sent by issuer', color: 'var(--blue)' });
+  if (t.appeal_declined) log.push({ time: null, msg: 'Appeal declined', color: 'var(--accent)' });
+  if (t.appeal_response_locked) log.push({ time: null, msg: 'Appeal thread locked', color: 'var(--muted)' });
+  if (t.status === 'resolved') log.push({ time: null, msg: 'Ticket resolved', color: 'var(--success)' });
 
   const logHtml = `
     <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:14px;">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;">Activity Log</div>
       ${log.map(entry => `
-        <div style="display:flex;gap:10px;margin-bottom:6px;font-size:12px;">
-          <span style="color:var(--muted);min-width:8px;">•</span>
-          <span>${entry.msg}${entry.time ? ` — <span style="color:var(--muted)">${new Date(entry.time).toLocaleString()}</span>` : ''}</span>
+        <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--bg);">
+          <div style="width:3px;min-width:3px;background:${entry.color};align-self:stretch;border-radius:2px;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;">${entry.msg}</div>
+            ${entry.time ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(entry.time).toLocaleString()}</div>` : ''}
+          </div>
         </div>`).join('')}
     </div>`;
 
@@ -984,6 +1014,8 @@ function renderFullTicket(container, t, isIssuerView) {
       })() : ''}
 
       ${appealThread}
+      ${notesHtml}
+      ${issuerActionsHtml}
       ${statusMsg}
       ${appealSection}
       ${logHtml}
@@ -1023,12 +1055,13 @@ function openPointsModal(id, context, verifyNote) {
   const t = _ticketCache[id];
   const fullPoints = t ? t.points : 0;
   const half = Math.ceil(fullPoints / 2);
+  const isStillThere = context === 'notmoved';
 
   const contextMsg = context === 'verified'
-    ? 'The recipient reported the item was removed. Choose how to handle their points.'
-    : 'The item was verified as still there. Choose how to proceed.';
+    ? 'Recipient reported the item was removed. Choose how to handle their points.'
+    : 'Item is still there. Choose how to proceed.';
 
-  const impoundOption = context === 'notmoved' ? `
+  const impoundOption = isStillThere ? `
     <div id="pm-impound" onclick="selectPointsOption('impound')" style="border:2px solid var(--border);padding:12px;cursor:pointer;">
       <div style="display:flex;align-items:center;gap:10px;">
         <div id="pm-dot-impound" style="width:16px;height:16px;border-radius:50%;border:2px solid #7b3f00;flex-shrink:0;"></div>
@@ -1037,16 +1070,42 @@ function openPointsModal(id, context, verifyNote) {
           <div style="font-size:12px;color:var(--muted);margin-top:2px;">Take a photo and remove the item yourself. Keep full points.</div>
         </div>
       </div>
+    </div>
+    <div id="pm-keepopen" onclick="selectPointsOption('keepopen')" style="border:2px solid var(--border);padding:12px;cursor:pointer;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="pm-dot-keepopen" style="width:16px;height:16px;border-radius:50%;border:2px solid var(--blue);flex-shrink:0;"></div>
+        <div>
+          <div style="font-weight:700;color:var(--blue);font-size:14px;">Add Points &amp; Keep Open</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Add more points and leave a comment. Ticket stays active.</div>
+        </div>
+      </div>
+    </div>` : '';
+
+  const keepOpenFields = isStillThere ? `
+    <div id="pm-keepopen-fields" style="display:none;border:1px solid var(--border);padding:12px;margin-top:4px;background:var(--bg);">
+      <div class="field-group">
+        <label style="font-size:12px;font-weight:600;">Additional Points</label>
+        <select id="pm-extra-points" style="font-size:13px;padding:6px 8px;border:1px solid var(--border);width:auto;">
+          <option value="0">No additional points</option>
+          <option value="1">+1 point</option>
+          <option value="2">+2 points</option>
+          <option value="3">+3 points</option>
+        </select>
+      </div>
+      <div class="field-group" style="margin-bottom:0;">
+        <label style="font-size:12px;font-weight:600;">Comment (appears on ticket)</label>
+        <textarea id="pm-comment" placeholder="e.g. Item still present after 48 hours. Points added." style="min-height:70px;font-size:13px;"></textarea>
+      </div>
     </div>` : '';
 
   const modal = document.createElement('div');
   modal.id = 'points-modal';
   modal.dataset.verifyNote = verifyNote || '';
   modal.dataset.context = context;
-  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;';
 
   modal.innerHTML = `
-    <div style="background:var(--white);max-width:440px;width:100%;border-top:4px solid var(--blue);">
+    <div style="background:var(--white);max-width:440px;width:100%;border-top:4px solid var(--blue);margin:auto;">
       <div style="background:var(--blue);color:var(--white);padding:14px 18px;">
         <div style="font-size:15px;font-weight:700;">How should points be handled?</div>
         <div style="font-size:12px;opacity:0.75;margin-top:2px;">${contextMsg}</div>
@@ -1056,8 +1115,8 @@ function openPointsModal(id, context, verifyNote) {
           <div style="display:flex;align-items:center;gap:10px;">
             <div id="pm-dot-full" style="width:16px;height:16px;border-radius:50%;border:2px solid var(--accent);flex-shrink:0;"></div>
             <div>
-              <div style="font-weight:700;color:var(--accent);font-size:14px;">Keep Full Points</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:2px;">${fullPoints} pt${fullPoints !== 1 ? 's' : ''} remain on record.</div>
+              <div style="font-weight:700;color:var(--accent);font-size:14px;">Keep Full Points &amp; Close</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px;">${fullPoints} pt${fullPoints !== 1 ? 's' : ''} — close the ticket as-is.</div>
             </div>
           </div>
         </div>
@@ -1067,8 +1126,8 @@ function openPointsModal(id, context, verifyNote) {
           <div style="display:flex;align-items:center;gap:10px;">
             <div id="pm-dot-half" style="width:16px;height:16px;border-radius:50%;border:2px solid var(--warn);flex-shrink:0;"></div>
             <div>
-              <div style="font-weight:700;color:var(--warn);font-size:14px;">Reduce Points</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:2px;">Reduce to ${half} pt${half !== 1 ? 's' : ''} — partial credit.</div>
+              <div style="font-weight:700;color:var(--warn);font-size:14px;">Reduce to ${half} Point${half !== 1 ? 's' : ''} &amp; Close</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px;">Partial — close the ticket with reduced fine.</div>
             </div>
           </div>
         </div>` : ''}
@@ -1077,17 +1136,18 @@ function openPointsModal(id, context, verifyNote) {
           <div style="display:flex;align-items:center;gap:10px;">
             <div id="pm-dot-none" style="width:16px;height:16px;border-radius:50%;border:2px solid var(--success);flex-shrink:0;"></div>
             <div>
-              <div style="font-weight:700;color:var(--success);font-size:14px;">Remove All Points</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:2px;">Waive the fine entirely — 0 pts.</div>
+              <div style="font-weight:700;color:var(--success);font-size:14px;">Dismiss — Remove All Points &amp; Close</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px;">Waive the fine and close the ticket.</div>
             </div>
           </div>
         </div>
 
         ${impoundOption}
+        ${keepOpenFields}
 
         <div id="pm-msg"></div>
         <div style="display:flex;gap:10px;margin-top:4px;">
-          <button id="pm-confirm-btn" onclick="confirmPointsAction('${id}')" style="padding:10px 20px;font-size:14px;">Confirm & Close</button>
+          <button id="pm-confirm-btn" onclick="confirmPointsAction('${id}')" style="padding:10px 20px;font-size:14px;">Confirm</button>
           <button class="secondary" onclick="document.getElementById('points-modal').remove()" style="padding:10px 18px;font-size:14px;">Cancel</button>
         </div>
       </div>
@@ -1101,21 +1161,23 @@ function openPointsModal(id, context, verifyNote) {
 let _selectedPointsOption = 'full';
 function selectPointsOption(key) {
   _selectedPointsOption = key;
-  const colors = { full: 'var(--accent)', half: 'var(--warn)', none: 'var(--success)', impound: '#7b3f00' };
-  ['full','half','none','impound'].forEach(k => {
+  const colors = { full: 'var(--accent)', half: 'var(--warn)', none: 'var(--success)', impound: '#7b3f00', keepopen: 'var(--blue)' };
+  ['full','half','none','impound','keepopen'].forEach(k => {
     const row = document.getElementById(`pm-${k}`);
     const dot = document.getElementById(`pm-dot-${k}`);
     if (!row) return;
     if (k === key) {
       row.style.borderColor = colors[k];
       row.style.background = 'var(--blue-light)';
-      dot.style.background = colors[k];
+      if (dot) dot.style.background = colors[k];
     } else {
       row.style.borderColor = 'var(--border)';
       row.style.background = 'transparent';
-      dot.style.background = 'transparent';
+      if (dot) dot.style.background = 'transparent';
     }
   });
+  const koFields = document.getElementById('pm-keepopen-fields');
+  if (koFields) koFields.style.display = key === 'keepopen' ? 'block' : 'none';
 }
 
 async function confirmPointsAction(id) {
@@ -1129,6 +1191,26 @@ async function confirmPointsAction(id) {
     return;
   }
 
+  if (_selectedPointsOption === 'keepopen') {
+    const extraPts = parseInt(document.getElementById('pm-extra-points')?.value || '0');
+    const comment = document.getElementById('pm-comment')?.value.trim() || '';
+    if (!comment && extraPts === 0) {
+      msgEl.className = 'msg error'; msgEl.textContent = 'Add points or a comment to continue.'; msgEl.style.display = 'block';
+      return;
+    }
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+    if (extraPts > 0) {
+      await fetch('/api/ticket-update', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'add_points', points: extraPts, reason: comment || 'Item still present' }) });
+    } else if (comment) {
+      await fetch('/api/ticket-update', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'add_note', note: comment }) });
+    }
+    modal?.remove();
+    location.reload();
+    return;
+  }
+
   if (btn) { btn.disabled = true; btn.textContent = 'Working...'; }
 
   const t = _ticketCache[id];
@@ -1139,15 +1221,12 @@ async function confirmPointsAction(id) {
   if (_selectedPointsOption === 'none') {
     result = await API.resolve(id, true);
   } else if (_selectedPointsOption === 'half' && fullPoints > 1) {
-    const res = await fetch('/api/adjust-points', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, points: half })
-    });
+    const res = await fetch('/api/adjust-points', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, points: half }) });
     const adj = await res.json();
     if (!adj.success) {
       msgEl.className = 'msg error'; msgEl.textContent = adj.error || 'Failed.'; msgEl.style.display = 'block';
-      if (btn) { btn.disabled = false; btn.textContent = 'Confirm & Close'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Confirm'; }
       return;
     }
     result = await API.resolve(id, false);
@@ -1158,7 +1237,7 @@ async function confirmPointsAction(id) {
   if (result?.success) { modal?.remove(); location.reload(); }
   else {
     msgEl.className = 'msg error'; msgEl.textContent = result?.error || 'Something went wrong.'; msgEl.style.display = 'block';
-    if (btn) { btn.disabled = false; btn.textContent = 'Confirm & Close'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Confirm'; }
   }
 }
 
