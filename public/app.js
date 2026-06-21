@@ -753,212 +753,135 @@ function renderFullTicket(container, t, isIssuerView) {
   const displayName = t.claimed_name || t.person_name;
   const dateStr = new Date(t.created_at).toLocaleString();
   const penalInfo = t.penal_code ? PENAL_CODES.find(p => p.code === t.penal_code) : null;
-  const vtInfo = VIOLATION_TYPES[t.violation_type];
 
-  // ── Extra photos ───────────────────────────────────────────────────────────
+  // Extra photos
   let extraPhotosHtml = '';
   if (t.extra_photos) {
     try {
-      JSON.parse(t.extra_photos).forEach((src, i) => {
-        extraPhotosHtml += `<img class="ticket-photo" src="${src}" alt="Evidence photo ${i+2}" style="margin-top:8px;">`;
-      });
+      const extras = JSON.parse(t.extra_photos);
+      extraPhotosHtml = extras.map((src, i) =>
+        `<img class="ticket-photo" src="${src}" alt="Evidence photo ${i + 2}" style="margin-top:8px;">`
+      ).join('');
     } catch {}
   }
 
-  // ── Removal notice block ───────────────────────────────────────────────────
-  // Shows the notice, tracks its state through all possible outcomes cleanly.
-  let removalBlock = '';
-  if (t.removal_notice) {
-    // --- What happened? Pick exactly one outcome state ---
-    let outcomeHtml = '';
-
-    if (t.issuer_removed_at) {
-      // Issuer physically removed/impounded the item
-      outcomeHtml = `
-        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e6a000;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:6px;">
-            Impounded — ${new Date(t.issuer_removed_at).toLocaleString()}
-          </div>
-          ${t.issuer_removed_photo ? `<img src="${t.issuer_removed_photo}" style="width:100%;max-height:260px;object-fit:cover;border:1px solid var(--border);display:block;margin-bottom:8px;">` : ''}
-          ${t.issuer_removed_note ? `<div style="font-size:13px;color:var(--text);margin-top:4px;">${t.issuer_removed_note}</div>` : ''}
-        </div>`;
-
-    } else if (t.item_removed_at && t.status === 'resolved') {
-      // Recipient reported removal and issuer judged it
-      const verified = t.points === 0;
-      outcomeHtml = verified
-        ? `<div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;font-weight:600;color:var(--success);">
-             Item removal confirmed — ticket closed.
-           </div>`
-        : `<div style="margin-top:10px;background:#fde8e8;border:1px solid var(--accent);padding:10px;font-size:13px;font-weight:600;color:var(--accent);">
-             Item was verified as not removed. Points remain on record.
-           </div>`;
-
-    } else if (t.item_removed_at && !t.issuer_removed_at) {
-      // Recipient reported removal — waiting on issuer
-      if (isIssuerView) {
-        // Issuer sees: claim + verify buttons + note field
-        outcomeHtml = `
-          <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e6a000;">
-            <div style="background:#e8f5e8;border:1px solid var(--success);padding:10px;margin-bottom:10px;">
-              <div style="font-size:13px;font-weight:700;color:var(--success);">Recipient says item was removed</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:2px;">${new Date(t.item_removed_at).toLocaleString()}</div>
-              ${t.item_removed_note ? `<div style="font-size:13px;margin-top:6px;border-top:1px solid var(--success);padding-top:6px;">"${t.item_removed_note}"</div>` : ''}
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <button onclick="verifyItemRemoved('${t.id}', true)" style="background:var(--success);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;font-weight:600;">Confirmed — Item Gone</button>
-              <button onclick="verifyItemRemoved('${t.id}', false)" style="background:var(--accent);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;font-weight:600;">Item Still There</button>
-            </div>
-          </div>`;
-      } else {
-        // Recipient sees: their report is pending
-        outcomeHtml = `
-          <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;">
-            <strong style="color:var(--success);">Removal reported</strong> — ${new Date(t.item_removed_at).toLocaleString()}. Pending verification.
-            ${t.item_removed_note ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;">Your note: "${t.item_removed_note}"</div>` : ''}
-          </div>`;
-      }
-
-    } else if (t.status !== 'resolved') {
-      // Nothing has happened yet — show deadline warning and action button for recipient
-      outcomeHtml = `<div style="font-size:12px;color:var(--accent);margin-top:8px;font-weight:600;">Failure to comply may result in the item being impounded.</div>`;
-      if (!isIssuerView) {
-        outcomeHtml += `
-          <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e6a000;">
-            <div id="item-removed-msg"></div>
-            <div class="field-group" style="margin-bottom:8px;">
-              <label for="item-removed-note" style="font-size:12px;">Note <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
-              <input type="text" id="item-removed-note" placeholder="e.g. Moved to my room, Left by front door" style="font-size:13px;">
-            </div>
-            <button onclick="submitItemRemoved('${t.id}')" style="background:#2a7a2a;color:#fff;padding:10px 18px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">
-              I Have Removed the Item
-            </button>
-            <div style="font-size:11px;color:var(--muted);margin-top:6px;">The issuer will verify. Points may be reduced or waived.</div>
-          </div>`;
-      }
-    }
-
-    removalBlock = `
-      <div style="background:#fff3cd;border:2px solid #e6a000;padding:14px;margin-bottom:16px;">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#a07000;margin-bottom:4px;">Removal Notice</div>
-        <div style="font-size:14px;font-weight:600;color:#333;">
-          Must be removed${t.removal_deadline ? ` — <strong>${formatDeadline(t.removal_deadline, t.created_at)}</strong>` : ''}.
-        </div>
-        ${t.removal_note ? `<div style="font-size:13px;color:var(--muted);margin-top:4px;">${t.removal_note}</div>` : ''}
-        ${outcomeHtml}
-      </div>`;
-  }
-
-  // ── Appeal thread (read-only display) ──────────────────────────────────────
+  // Appeal thread — clean, no duplicates
   let appealThread = '';
   if (t.appeal_note) {
-    appealThread += `
-      <div class="appeal-box" style="margin-top:16px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#a07000;margin-bottom:6px;">Appeal</div>
-        <div style="font-size:14px;">${t.appeal_note}</div>
-        ${t.appeal_photo_base64 ? `<img src="${t.appeal_photo_base64}" style="width:100%;margin-top:8px;border:1px solid var(--border);">` : ''}
-      </div>`;
+    appealThread += `<div class="appeal-box" style="margin-top:16px;">
+      <strong style="font-size:12px;color:#a07000;text-transform:uppercase;letter-spacing:0.5px;">Appeal Filed</strong>
+      <div style="margin-top:6px;">${t.appeal_note}</div>
+      ${t.appeal_photo_base64 ? `<img src="${t.appeal_photo_base64}" style="width:100%;margin-top:8px;border:1px solid var(--border);" alt="Appeal photo">` : ''}
+    </div>`;
   }
   if (t.appeal_response) {
-    appealThread += `
-      <div style="background:#e8f5e8;border:1px solid var(--success);padding:14px;margin-top:8px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--success);margin-bottom:6px;">Response</div>
-        <div style="font-size:14px;">${t.appeal_response}</div>
-        ${t.appeal_response_photo ? `<img src="${t.appeal_response_photo}" style="width:100%;margin-top:8px;border:1px solid var(--border);">` : ''}
-      </div>`;
+    appealThread += `<div style="background:#e8f5e8;border:1px solid var(--success);padding:14px;margin-top:8px;">
+      <strong style="font-size:12px;color:var(--success);text-transform:uppercase;letter-spacing:0.5px;">Response from Issuer</strong>
+      <div style="margin-top:6px;">${t.appeal_response}</div>
+      ${t.appeal_response_photo ? `<img src="${t.appeal_response_photo}" style="width:100%;margin-top:8px;border:1px solid var(--border);" alt="Response photo">` : ''}
+    </div>`;
   }
 
-  // ── Status banner ──────────────────────────────────────────────────────────
-  let statusBanner = '';
-  if (t.status === 'resolved' && !t.issuer_removed_at && !t.item_removed_at) {
-    statusBanner = `<div class="msg ok" style="display:block;margin-top:16px;">This ticket has been resolved.</div>`;
+  // Status message — single, non-duplicating
+  let statusMsg = '';
+  if (t.status === 'resolved') {
+    if (t.issuer_removed_at) {
+      statusMsg = '<div class="msg error" style="display:block;margin-top:16px;background:#fde8e8;border-left:4px solid var(--accent);">This item has been impounded.</div>';
+    } else if (t.item_removed_at) {
+      statusMsg = '<div class="msg ok" style="display:block;margin-top:16px;">Item removal has been verified. This ticket is closed.</div>';
+    } else {
+      statusMsg = '<div class="msg ok" style="display:block;margin-top:16px;">This ticket has been resolved.</div>';
+    }
   } else if (t.appeal_declined) {
-    statusBanner = `<div class="msg error" style="display:block;margin-top:16px;">Appeal declined — points remain.</div>`;
+    statusMsg = '<div class="msg error" style="display:block;margin-top:16px;">Appeal declined — points remain.</div>';
   } else if (t.appeal_response_locked || t.status === 'locked') {
-    statusBanner = `<div class="msg" style="display:block;margin-top:16px;background:var(--blue-light);color:var(--blue-dark);padding:14px;">Appeal thread closed.</div>`;
+    statusMsg = '<div class="msg" style="display:block;margin-top:16px;background:var(--blue-light);color:var(--blue-dark);padding:14px;">This appeal thread has been closed.</div>';
   }
 
-  // ── Appeal form (recipient action) ─────────────────────────────────────────
-  // Rules: can't appeal if declined, locked, or already used the "I removed it" button without a prior appeal
-  const threadClosed = t.appeal_declined || t.appeal_response_locked || t.status === 'locked';
-  const selfReportedWithoutAppeal = t.item_removed_at && !t.appeal_flagged;
-  const plainResolved = t.status === 'resolved' && !t.removal_notice;
+  // Appeal action section (recipient only)
+  // Allow appeal even on resolved tickets that have a removal notice — they can contest the impound
+  const canAppeal = !isIssuerView
+    && !t.appeal_declined
+    && !t.appeal_response_locked
+    && t.status !== 'locked'
+    && !(t.status === 'resolved' && !t.removal_notice)
+    // If they self-reported removal, they can't also file an appeal unless they already had one in progress
+    && !(t.item_removed_at && !t.appeal_flagged);
 
-  let appealForm = '';
-  if (!isIssuerView && !threadClosed && !selfReportedWithoutAppeal && !plainResolved) {
-    const isImpound = t.issuer_removed_at && t.status === 'resolved';
-
+  let appealSection = '';
+  if (canAppeal) {
     if (!t.appeal_flagged) {
-      appealForm = `
+      const isImpound = t.issuer_removed_at && t.status === 'resolved';
+      appealSection = `
         <hr class="divider">
         <h2>${isImpound ? 'Contest Impound' : 'File an Appeal'}</h2>
-        ${isImpound ? `<div style="font-size:13px;color:var(--muted);margin-bottom:12px;">You can contest this impound if you believe it was unjustified.</div>` : ''}
+        ${isImpound ? `<div style="font-size:13px;color:var(--muted);margin-bottom:12px;">If you believe this item was wrongly impounded, you can contest it below.</div>` : ''}
         <div id="appeal-msg"></div>
         <div class="field-group">
           <label for="appeal-note">Explanation <span class="req">*</span></label>
           <textarea id="appeal-note" placeholder="${isImpound ? 'Explain why this impound should be contested...' : 'Explain your situation...'}"></textarea>
         </div>
         <div class="field-group">
-          <label for="appeal-photo">Photo <span class="opt">(optional)</span></label>
+          <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
           <input type="file" id="appeal-photo" accept="image/*" capture="environment">
         </div>
-        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;">
+        <div class="field-group" style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;">
           <input type="checkbox" id="appeal-confirm" style="margin-top:3px;width:auto;flex-shrink:0;">
           <label for="appeal-confirm" style="font-weight:400;font-size:13px;margin-bottom:0;cursor:pointer;">
             I confirm this citation was issued to me and my information is accurate.
           </label>
         </div>
         <button onclick="submitAppeal('${t.id}')">${isImpound ? 'Submit Contest' : 'Submit Appeal'}</button>`;
-
-    } else if (t.appeal_flagged && t.appeal_response && !t.appeal_response_locked) {
-      appealForm = `
+    } else if (t.appeal_flagged && t.appeal_response) {
+      appealSection = `
         <hr class="divider">
-        <h2>Reply</h2>
+        <h2>Reply to Response</h2>
         <div id="appeal-msg"></div>
         <div class="field-group">
           <label for="appeal-note">Your Reply <span class="req">*</span></label>
           <textarea id="appeal-note" placeholder="Reply to the issuer's response..."></textarea>
         </div>
         <div class="field-group">
-          <label for="appeal-photo">Photo <span class="opt">(optional)</span></label>
+          <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
           <input type="file" id="appeal-photo" accept="image/*" capture="environment">
         </div>
         <button onclick="submitAppeal('${t.id}')">Send Reply</button>`;
-
     } else if (t.appeal_flagged && !t.appeal_response) {
-      appealForm = `<div class="appeal-box" style="margin-top:16px;">Appeal submitted — under review.</div>`;
+      appealSection = `<div class="appeal-box" style="margin-top:16px;">Your appeal has been submitted and is under review.</div>`;
     }
   }
 
-  // ── Activity log ───────────────────────────────────────────────────────────
-  const log = [{ time: t.created_at, msg: 'Ticket issued' }];
-  if (t.removal_notice) log.push({ time: null, msg: `Removal notice — ${formatDeadline(t.removal_deadline, t.created_at)}` });
-  if (t.item_removed_at) log.push({ time: t.item_removed_at, msg: 'Recipient reported item removed' });
+  // Activity log
+  const log = [];
+  log.push({ time: t.created_at, msg: 'Ticket issued' });
+  if (t.removal_notice) log.push({ time: null, msg: `Removal notice attached — ${formatDeadline(t.removal_deadline, t.created_at)}` });
+  if (t.item_removed_at) log.push({ time: t.item_removed_at, msg: 'Recipient reported item removed — pending verification' });
   if (t.issuer_removed_at) log.push({ time: t.issuer_removed_at, msg: 'Item impounded' });
-  if (t.appeal_flagged) log.push({ time: null, msg: 'Appeal filed' });
-  if (t.appeal_response) log.push({ time: null, msg: 'Response sent' });
-  if (t.appeal_declined) log.push({ time: null, msg: 'Appeal declined' });
-  if (t.appeal_response_locked) log.push({ time: null, msg: 'Thread locked' });
-  if (t.status === 'resolved') log.push({ time: null, msg: 'Ticket closed' });
+  if (t.appeal_flagged && t.appeal_note) log.push({ time: null, msg: 'Appeal filed by recipient' });
+  if (t.appeal_response) log.push({ time: null, msg: 'Response sent by issuer' });
+  if (t.appeal_declined) log.push({ time: null, msg: 'Appeal declined by issuer' });
+  if (t.appeal_response_locked) log.push({ time: null, msg: 'Appeal thread locked' });
+  if (t.status === 'resolved') log.push({ time: null, msg: 'Ticket resolved' });
 
   const logHtml = `
     <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:14px;">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;">Activity Log</div>
-      ${log.map(e => `
+      ${log.map(entry => `
         <div style="display:flex;gap:10px;margin-bottom:6px;font-size:12px;">
-          <span style="color:var(--muted);">•</span>
-          <span>${e.msg}${e.time ? ` — <span style="color:var(--muted)">${new Date(e.time).toLocaleString()}</span>` : ''}</span>
+          <span style="color:var(--muted);min-width:8px;">•</span>
+          <span>${entry.msg}${entry.time ? ` — <span style="color:var(--muted)">${new Date(entry.time).toLocaleString()}</span>` : ''}</span>
         </div>`).join('')}
     </div>`;
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const vtInfo = VIOLATION_TYPES[t.violation_type];
+
   container.innerHTML = `
     <div class="ticket-header">
       <div class="ticket-id">${t.id}</div>
       <div class="ticket-name">${displayName}</div>
       <div style="margin-top:6px;">
         <span class="badge ${t.violation_type}">${(vtInfo?.label || t.violation_type).toUpperCase()}</span>
-        ${t.removal_notice ? `&nbsp;<span class="badge removal">REMOVAL</span>` : ''}
+        ${t.removal_notice ? `&nbsp;<span class="badge removal">REMOVAL NOTICE</span>` : ''}
         &nbsp;
         <span class="badge ${t.appeal_declined ? 'severe' : t.status}">${t.appeal_declined ? 'DECLINED' : t.status.toUpperCase()}</span>
       </div>
@@ -987,10 +910,82 @@ function renderFullTicket(container, t, isIssuerView) {
           <div style="font-size:14px;white-space:pre-wrap;">${t.description}</div>
         </div>` : ''}
 
-      ${removalBlock}
+      ${t.removal_notice ? (() => {
+        // Determine current state of the removal notice
+        const impounded = !!t.issuer_removed_at;
+        const selfReported = !!t.item_removed_at;
+        const resolved = t.status === 'resolved';
+
+        let removalContent = '';
+
+        // Header
+        removalContent += `
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#a07000;margin-bottom:6px;">Removal Notice</div>
+          <div style="font-size:14px;font-weight:600;color:#333;">
+            Must be removed${t.removal_deadline ? ` — <strong>${formatDeadline(t.removal_deadline, t.created_at)}</strong>` : ''}.
+          </div>
+          ${t.removal_note ? `<div style="font-size:13px;color:var(--muted);margin-top:4px;">${t.removal_note}</div>` : ''}`;
+
+        // ── IMPOUNDED (issuer removed it) ──
+        if (impounded) {
+          removalContent += `
+            <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:6px;">Impounded — ${new Date(t.issuer_removed_at).toLocaleString()}</div>
+              ${t.issuer_removed_photo ? `<img src="${t.issuer_removed_photo}" style="width:100%;max-height:280px;object-fit:cover;border:1px solid var(--border);display:block;margin-bottom:8px;">` : ''}
+              ${t.issuer_removed_note ? `<div style="font-size:13px;color:var(--text);">${t.issuer_removed_note}</div>` : ''}
+            </div>`;
+
+        // ── SELF-REPORTED: pending issuer verification ──
+        } else if (selfReported && !resolved) {
+          if (isIssuerView) {
+            removalContent += `
+              <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;background:#e8f5e8;border:1px solid var(--success);padding:10px;margin-top:10px;">
+                <div style="font-size:13px;font-weight:700;color:var(--success);margin-bottom:8px;">Recipient says item was removed — ${new Date(t.item_removed_at).toLocaleString()}</div>
+                <div class="field-group">
+                  <label for="ir-verify-note" style="font-size:12px;">Add a note <span style="font-weight:400;color:var(--muted)">(optional — e.g. "Left trash behind")</span></label>
+                  <input type="text" id="ir-verify-note" placeholder="e.g. Area was left messy" style="margin-bottom:8px;">
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button onclick="verifyItemRemoved('${t.id}', true)" style="background:var(--success);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;font-weight:600;">Item is Gone</button>
+                  <button onclick="verifyItemRemoved('${t.id}', false)" style="background:var(--accent);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;">Item Still There</button>
+                </div>
+              </div>`;
+          } else {
+            removalContent += `
+              <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;">
+                <strong style="color:var(--success);">Removal Reported</strong> — ${new Date(t.item_removed_at).toLocaleString()}. Pending verification.
+              </div>`;
+          }
+
+        // ── SELF-REPORTED: resolved after verification ──
+        } else if (selfReported && resolved) {
+          // Use item_removed_note as proxy for "they were told it was confirmed" — use points as signal
+          const wasConfirmed = t.points === 0;
+          removalContent += wasConfirmed
+            ? `<div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;font-weight:600;color:var(--success);">Removal confirmed — ticket closed.</div>`
+            : `<div style="margin-top:10px;background:#fde8e8;border:1px solid var(--accent);padding:10px;font-size:13px;font-weight:600;color:var(--accent);">Item was verified as still there. Points remain.</div>`;
+
+        // ── OPEN: recipient can report removal ──
+        } else if (!isIssuerView && !resolved) {
+          removalContent += `
+            <div style="font-size:12px;color:var(--accent);margin-top:8px;font-weight:600;">Failure to comply may result in the item being impounded.</div>
+            <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;">
+              <button onclick="submitItemRemoved('${t.id}')" style="background:#2a7a2a;color:#fff;padding:10px 18px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">
+                I Have Removed the Item
+              </button>
+              <div style="font-size:11px;color:var(--muted);margin-top:6px;">The issuer will be notified to verify. Points may be waived.</div>
+            </div>`;
+
+        } else if (!resolved) {
+          removalContent += `<div style="font-size:12px;color:var(--accent);margin-top:8px;font-weight:600;">Failure to comply may result in the item being impounded.</div>`;
+        }
+
+        return `<div style="background:#fff3cd;border:2px solid #e6a000;padding:14px;margin-bottom:16px;">${removalContent}</div>`;
+      })() : ''}
+
       ${appealThread}
-      ${statusBanner}
-      ${appealForm}
+      ${statusMsg}
+      ${appealSection}
       ${logHtml}
     </div>
   `;
@@ -1011,16 +1006,17 @@ async function submitItemRemoved(id) {
 }
 
 async function verifyItemRemoved(id, confirmed) {
+  const noteEl = document.getElementById('ir-verify-note');
+  const note = noteEl ? noteEl.value.trim() : null;
   if (confirmed) {
-    // Recipient says removed — offer points choice before closing
-    openPointsModal(id, 'verified');
+    openPointsModal(id, 'verified', note);
   } else {
-    // Still there — offer points choice
-    openPointsModal(id, 'notmoved');
+    // Item still there — offer points choice AND option to impound right now
+    openPointsModal(id, 'notmoved', note);
   }
 }
 
-function openPointsModal(id, context) {
+function openPointsModal(id, context, verifyNote) {
   const existing = document.getElementById('points-modal');
   if (existing) existing.remove();
 
@@ -1030,17 +1026,24 @@ function openPointsModal(id, context) {
 
   const contextMsg = context === 'verified'
     ? 'The recipient reported the item was removed. Choose how to handle their points.'
-    : 'The item was not moved by the deadline. Choose how to handle their points.';
+    : 'The item was verified as still there. Choose how to proceed.';
+
+  const impoundOption = context === 'notmoved' ? `
+    <div id="pm-impound" onclick="selectPointsOption('impound')" style="border:2px solid var(--border);padding:12px;cursor:pointer;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="pm-dot-impound" style="width:16px;height:16px;border-radius:50%;border:2px solid #7b3f00;flex-shrink:0;"></div>
+        <div>
+          <div style="font-weight:700;color:#7b3f00;font-size:14px;">Impound Now</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Take a photo and remove the item yourself. Keep full points.</div>
+        </div>
+      </div>
+    </div>` : '';
 
   const modal = document.createElement('div');
   modal.id = 'points-modal';
+  modal.dataset.verifyNote = verifyNote || '';
+  modal.dataset.context = context;
   modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
-
-  const options = [
-    { key: 'full', label: `Keep Full Points`, desc: `${fullPoints} pt${fullPoints !== 1 ? 's' : ''} remain on record.`, color: 'var(--accent)' },
-    ...(fullPoints > 1 ? [{ key: 'half', label: `Reduce Points`, desc: `Reduce to ${half} pt${half !== 1 ? 's' : ''} — partial credit for compliance.`, color: 'var(--warn)' }] : []),
-    { key: 'none', label: `Remove All Points`, desc: `0 pts — waive the fine entirely.`, color: 'var(--success)' },
-  ];
 
   modal.innerHTML = `
     <div style="background:var(--white);max-width:440px;width:100%;border-top:4px solid var(--blue);">
@@ -1049,19 +1052,42 @@ function openPointsModal(id, context) {
         <div style="font-size:12px;opacity:0.75;margin-top:2px;">${contextMsg}</div>
       </div>
       <div style="padding:18px;display:flex;flex-direction:column;gap:10px;">
-        ${options.map(o => `
-          <div id="pm-${o.key}" onclick="selectPointsOption('${o.key}')" style="border:2px solid var(--border);padding:12px;cursor:pointer;">
-            <div style="display:flex;align-items:center;gap:10px;">
-              <div id="pm-dot-${o.key}" style="width:16px;height:16px;border-radius:50%;border:2px solid ${o.color};flex-shrink:0;"></div>
-              <div>
-                <div style="font-weight:700;color:${o.color};font-size:14px;">${o.label}</div>
-                <div style="font-size:12px;color:var(--muted);margin-top:2px;">${o.desc}</div>
-              </div>
+        <div id="pm-full" onclick="selectPointsOption('full')" style="border:2px solid var(--border);padding:12px;cursor:pointer;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div id="pm-dot-full" style="width:16px;height:16px;border-radius:50%;border:2px solid var(--accent);flex-shrink:0;"></div>
+            <div>
+              <div style="font-weight:700;color:var(--accent);font-size:14px;">Keep Full Points</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px;">${fullPoints} pt${fullPoints !== 1 ? 's' : ''} remain on record.</div>
             </div>
-          </div>`).join('')}
+          </div>
+        </div>
+
+        ${fullPoints > 1 ? `
+        <div id="pm-half" onclick="selectPointsOption('half')" style="border:2px solid var(--border);padding:12px;cursor:pointer;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div id="pm-dot-half" style="width:16px;height:16px;border-radius:50%;border:2px solid var(--warn);flex-shrink:0;"></div>
+            <div>
+              <div style="font-weight:700;color:var(--warn);font-size:14px;">Reduce Points</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px;">Reduce to ${half} pt${half !== 1 ? 's' : ''} — partial credit.</div>
+            </div>
+          </div>
+        </div>` : ''}
+
+        <div id="pm-none" onclick="selectPointsOption('none')" style="border:2px solid var(--border);padding:12px;cursor:pointer;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div id="pm-dot-none" style="width:16px;height:16px;border-radius:50%;border:2px solid var(--success);flex-shrink:0;"></div>
+            <div>
+              <div style="font-weight:700;color:var(--success);font-size:14px;">Remove All Points</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px;">Waive the fine entirely — 0 pts.</div>
+            </div>
+          </div>
+        </div>
+
+        ${impoundOption}
+
         <div id="pm-msg"></div>
         <div style="display:flex;gap:10px;margin-top:4px;">
-          <button id="pm-confirm-btn" onclick="confirmPointsAction('${id}', '${context}')" style="padding:10px 20px;font-size:14px;">Confirm & Close</button>
+          <button id="pm-confirm-btn" onclick="confirmPointsAction('${id}')" style="padding:10px 20px;font-size:14px;">Confirm & Close</button>
           <button class="secondary" onclick="document.getElementById('points-modal').remove()" style="padding:10px 18px;font-size:14px;">Cancel</button>
         </div>
       </div>
@@ -1075,12 +1101,11 @@ function openPointsModal(id, context) {
 let _selectedPointsOption = 'full';
 function selectPointsOption(key) {
   _selectedPointsOption = key;
-  const t = _ticketCache[document.getElementById('pm-confirm-btn')?.getAttribute('onclick')?.match(/'([^']+)'/)?.[1]];
-  ['full','half','none'].forEach(k => {
+  const colors = { full: 'var(--accent)', half: 'var(--warn)', none: 'var(--success)', impound: '#7b3f00' };
+  ['full','half','none','impound'].forEach(k => {
     const row = document.getElementById(`pm-${k}`);
     const dot = document.getElementById(`pm-dot-${k}`);
     if (!row) return;
-    const colors = { full: 'var(--accent)', half: 'var(--warn)', none: 'var(--success)' };
     if (k === key) {
       row.style.borderColor = colors[k];
       row.style.background = 'var(--blue-light)';
@@ -1093,9 +1118,17 @@ function selectPointsOption(key) {
   });
 }
 
-async function confirmPointsAction(id, context) {
+async function confirmPointsAction(id) {
+  const modal = document.getElementById('points-modal');
   const btn = document.getElementById('pm-confirm-btn');
   const msgEl = document.getElementById('pm-msg');
+
+  if (_selectedPointsOption === 'impound') {
+    modal?.remove();
+    openIssuerRemoveModal(id);
+    return;
+  }
+
   if (btn) { btn.disabled = true; btn.textContent = 'Working...'; }
 
   const t = _ticketCache[id];
@@ -1104,9 +1137,8 @@ async function confirmPointsAction(id, context) {
 
   let result;
   if (_selectedPointsOption === 'none') {
-    result = await API.resolve(id, true); // dismiss removes points
+    result = await API.resolve(id, true);
   } else if (_selectedPointsOption === 'half' && fullPoints > 1) {
-    // Reduce points then resolve
     const res = await fetch('/api/adjust-points', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1120,10 +1152,10 @@ async function confirmPointsAction(id, context) {
     }
     result = await API.resolve(id, false);
   } else {
-    result = await API.resolve(id, false); // keep full points
+    result = await API.resolve(id, false);
   }
 
-  if (result?.success) { document.getElementById('points-modal')?.remove(); location.reload(); }
+  if (result?.success) { modal?.remove(); location.reload(); }
   else {
     msgEl.className = 'msg error'; msgEl.textContent = result?.error || 'Something went wrong.'; msgEl.style.display = 'block';
     if (btn) { btn.disabled = false; btn.textContent = 'Confirm & Close'; }
@@ -1280,13 +1312,17 @@ function renderTicketRow(t) {
 
   let actionBtn = '—';
   if (t.status !== 'resolved' || (t.removal_notice && t.appeal_flagged)) {
-    if (t.item_removed_at && t.status !== 'resolved') {
+    if (t.appeal_flagged) {
+      // Always show View Appeal if there's an appeal, regardless of item_removed_at
+      actionBtn = `<button style="padding:4px 12px;font-size:12px;background:var(--blue);color:#fff;border:none;cursor:pointer;" onclick="openAppealModal('${t.id}')">View Appeal</button>`;
+      if (t.status !== 'resolved') {
+        actionBtn += `<br><button class="success" style="padding:3px 8px;font-size:11px;margin-top:3px;" onclick="showResolveModal('${t.id}', 'resolve')">Resolve</button>`;
+      }
+    } else if (t.item_removed_at && t.status !== 'resolved') {
       actionBtn = `
         <div style="font-size:11px;color:var(--success);font-weight:600;margin-bottom:4px;">Recipient says removed</div>
-        <button onclick="verifyItemRemoved('${t.id}', true)" style="padding:3px 8px;font-size:11px;background:var(--success);color:#fff;border:none;cursor:pointer;font-family:inherit;display:block;margin-bottom:3px;width:100%;">Confirm — Close</button>
+        <button onclick="verifyItemRemoved('${t.id}', true)" style="padding:3px 8px;font-size:11px;background:var(--success);color:#fff;border:none;cursor:pointer;font-family:inherit;display:block;margin-bottom:3px;width:100%;">Item is Gone</button>
         <button onclick="verifyItemRemoved('${t.id}', false)" style="padding:3px 8px;font-size:11px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-family:inherit;display:block;width:100%;">Item Still There</button>`;
-    } else if (t.appeal_flagged) {
-      actionBtn = `<button style="padding:4px 12px;font-size:12px;background:var(--blue)" onclick="openAppealModal('${t.id}')">View Appeal</button>`;
     } else if (t.status !== 'resolved') {
       actionBtn = `<button class="success" style="padding:4px 10px;font-size:12px;display:block;margin-bottom:4px;" onclick="showResolveModal('${t.id}', 'resolve')">Resolve</button>`;
     }
