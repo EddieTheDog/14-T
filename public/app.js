@@ -1200,11 +1200,14 @@ async function confirmPointsAction(id) {
     }
     if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
     if (extraPts > 0) {
-      await fetch('/api/ticket-update', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action: 'add_points', points: extraPts, reason: comment || 'Item still present' }) });
-    } else if (comment) {
-      await fetch('/api/ticket-update', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action: 'add_note', note: comment }) });
+      const t = _ticketCache[id];
+      const newTotal = (t ? t.points : 0) + extraPts;
+      await fetch('/api/adjust-points', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, points: newTotal }) });
+    }
+    if (comment) {
+      await fetch('/api/issuer-note', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, text: comment, points: 0 }) });
     }
     modal?.remove();
     location.reload();
@@ -1322,6 +1325,133 @@ async function submitIssuerRemoved(id) {
     msgEl.className = 'msg error'; msgEl.textContent = result.error || 'Failed.'; msgEl.style.display = 'block';
     if (btn) { btn.disabled = false; btn.textContent = 'Confirm & Close Ticket'; }
   }
+}
+
+// ── ADD NOTE / COMMENT ───────────────────────────────────────────────────────
+function openAddNoteModal(id) {
+  const existing = document.getElementById('add-note-modal');
+  if (existing) existing.remove();
+
+  const t = _ticketCache[id] || {};
+
+  const modal = document.createElement('div');
+  modal.id = 'add-note-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.innerHTML = `
+    <div style="background:var(--white);max-width:460px;width:100%;border-top:4px solid var(--blue);">
+      <div style="background:var(--blue);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:15px;font-weight:700;">Add Note / Comment</div>
+        <button onclick="document.getElementById('add-note-modal').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:3px 9px;font-size:13px;cursor:pointer;">✕</button>
+      </div>
+      <div style="padding:18px;">
+        <div id="note-msg"></div>
+        <div class="field-group">
+          <label for="note-text">Note <span class="req">*</span></label>
+          <textarea id="note-text" placeholder="Add a comment, observation, or update..." style="min-height:80px;"></textarea>
+        </div>
+        <div class="field-group">
+          <label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block;">Also add points?</label>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <input type="number" id="note-points" min="0" max="10" value="0" style="width:70px;padding:6px 8px;border:1px solid var(--border);font-size:14px;">
+            <span style="font-size:13px;color:var(--muted);">pts to add (0 = note only)</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:6px;">
+          <button onclick="submitAddNote('${id}')" style="padding:10px 18px;font-size:13px;">Save Note</button>
+          <button class="secondary" onclick="document.getElementById('add-note-modal').remove()" style="padding:10px 16px;font-size:13px;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+async function submitAddNote(id) {
+  const text = document.getElementById('note-text').value.trim();
+  const pts = parseInt(document.getElementById('note-points').value) || 0;
+  const msgEl = document.getElementById('note-msg');
+  if (!text) { msgEl.className = 'msg error'; msgEl.textContent = 'Note text is required.'; msgEl.style.display = 'block'; return; }
+
+  const btn = document.querySelector('#add-note-modal button[onclick^="submitAddNote"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+  const res = await fetch('/api/issuer-note', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, text, points: pts })
+  });
+  const result = await res.json();
+  if (result.success) { document.getElementById('add-note-modal').remove(); location.reload(); }
+  else { msgEl.className = 'msg error'; msgEl.textContent = result.error || 'Failed.'; msgEl.style.display = 'block'; if (btn) { btn.disabled = false; btn.textContent = 'Save Note'; } }
+}
+
+// ── ATTACH / REMOVE REMOVAL NOTICE ──────────────────────────────────────────
+function openAttachRemovalModal(id) {
+  const existing = document.getElementById('attach-removal-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'attach-removal-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.innerHTML = `
+    <div style="background:var(--white);max-width:440px;width:100%;border-top:4px solid #e6a000;">
+      <div style="background:#e6a000;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:15px;font-weight:700;">Attach Removal Notice</div>
+        <button onclick="document.getElementById('attach-removal-modal').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:3px 9px;font-size:13px;cursor:pointer;">✕</button>
+      </div>
+      <div style="padding:18px;">
+        <div id="attach-msg"></div>
+        <div class="field-group">
+          <label for="attach-deadline">Deadline <span class="req">*</span></label>
+          <select id="attach-deadline" style="margin-bottom:8px;">
+            <option value="immediately">Immediately</option>
+            <option value="24hr" selected>Within 24 hours</option>
+            <option value="48hr">Within 48 hours</option>
+            <option value="72hr">Within 72 hours</option>
+            <option value="1week">Within 1 week</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="attach-note">Note <span class="opt">(optional)</span></label>
+          <input type="text" id="attach-note" placeholder="e.g. Move to garage, Return to room">
+        </div>
+        <div style="display:flex;gap:10px;margin-top:6px;">
+          <button onclick="submitAttachRemoval('${id}')" style="padding:10px 18px;font-size:13px;background:#e6a000;border:none;color:#fff;cursor:pointer;font-family:inherit;font-weight:600;">Attach Notice</button>
+          <button class="secondary" onclick="document.getElementById('attach-removal-modal').remove()" style="padding:10px 16px;font-size:13px;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+async function submitAttachRemoval(id) {
+  const deadline = document.getElementById('attach-deadline').value;
+  const note = document.getElementById('attach-note').value.trim() || null;
+  const msgEl = document.getElementById('attach-msg');
+  const btn = document.querySelector('#attach-removal-modal button[onclick^="submitAttachRemoval"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+  const res = await fetch('/api/attach-removal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, deadline, note })
+  });
+  const result = await res.json();
+  if (result.success) { document.getElementById('attach-removal-modal').remove(); location.reload(); }
+  else { msgEl.className = 'msg error'; msgEl.textContent = result.error || 'Failed.'; msgEl.style.display = 'block'; if (btn) { btn.disabled = false; btn.textContent = 'Attach Notice'; } }
+}
+
+async function removeRemovalNotice(id) {
+  if (!confirm('Remove the removal notice from this ticket?')) return;
+  const res = await fetch('/api/attach-removal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, remove: true })
+  });
+  const result = await res.json();
+  if (result.success) location.reload();
+  else alert(result.error || 'Failed to remove notice.');
 }
 
 async function submitAppeal(id) {
