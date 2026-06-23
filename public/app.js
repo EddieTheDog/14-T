@@ -856,41 +856,44 @@ function renderFullTicket(container, t, isIssuerView) {
   if (t.issuer_notes) { try { issuerNotes = JSON.parse(t.issuer_notes); } catch {} }
 
   const NOTE_COLORS = {
-    blue:   { bg: '#e8f0fb', border: '#0057a8', text: '#003f7a' },
-    red:    { bg: '#fde8e8', border: '#d94f00', text: '#b54000' },
-    orange: { bg: '#fff0e0', border: '#e07000', text: '#a05000' },
-    yellow: { bg: '#fffbe6', border: '#e6a000', text: '#a07000' },
-    green:  { bg: '#e8f5e8', border: '#2a7a2a', text: '#1a5a1a' },
-    purple: { bg: '#f3e8ff', border: '#7b2fd4', text: '#5a20a0' },
-    gray:   { bg: '#f0f0f0', border: '#888888', text: '#444444' },
+    blue:   { bg: 'var(--blue-light)', border: 'var(--blue)', text: 'var(--blue-dark)' },
+    red:    { bg: '#fde8e8', border: 'var(--accent)', text: 'var(--accent)' },
+    orange: { bg: '#fff0e0', border: '#e67300', text: '#a34f00' },
+    yellow: { bg: '#fff9e0', border: '#e6a000', text: '#7a5500' },
+    green:  { bg: '#e8f5e8', border: 'var(--success)', text: '#1a5c1a' },
+    purple: { bg: '#f3eaff', border: '#7c3aed', text: '#4c1d95' },
+    grey:   { bg: '#f0f0f0', border: '#888', text: '#333' },
   };
 
+  // Issuer notes display
   const notesHtml = issuerNotes.length ? issuerNotes.map((n, idx) => {
-    const col = NOTE_COLORS[n.color] || NOTE_COLORS.blue;
-    const sym = n.symbol ? `<span style="margin-right:6px;">${n.symbol}</span>` : '';
+    const c = NOTE_COLORS[n.color] || NOTE_COLORS.blue;
+    const sym = n.symbol ? `<span style="margin-right:6px;font-size:15px;">${n.symbol}</span>` : '';
     return `
-    <div style="background:${col.bg};border-left:4px solid ${col.border};padding:12px 14px;margin-bottom:10px;position:relative;">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${col.text};margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;">
-        <span>${sym}${n.type === 'points' ? `+${n.points} pts — ` : ''}Note${n.time ? ` — ${new Date(n.time).toLocaleString()}` : ''}</span>
-        ${isIssuerView ? `<span style="display:flex;gap:6px;">
-          <button onclick="openEditNoteModal('${t.id}', ${idx})" style="background:none;border:none;font-size:11px;color:${col.text};cursor:pointer;padding:0;font-family:inherit;text-decoration:underline;">Edit</button>
-          <button onclick="deleteNote('${t.id}', ${idx})" style="background:none;border:none;font-size:11px;color:var(--accent);cursor:pointer;padding:0;font-family:inherit;text-decoration:underline;">Delete</button>
+    <div style="background:${c.bg};border-left:4px solid ${c.border};padding:12px 14px;margin-bottom:10px;position:relative;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${c.text};margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+        ${sym}<span>Note${n.time ? ` — <span style="font-weight:400;color:var(--muted)">${new Date(n.time).toLocaleString()}</span>` : ''}</span>
+        ${n.type === 'points' ? `<span style="background:var(--accent);color:#fff;padding:1px 6px;font-size:10px;">+${n.points}pts</span>` : ''}
+        ${isIssuerView ? `<span style="margin-left:auto;display:flex;gap:6px;">
+          <button onclick="openEditNoteModal('${t.id}', ${idx})" style="background:none;border:1px solid ${c.border};color:${c.text};padding:2px 7px;font-size:11px;cursor:pointer;font-family:inherit;">Edit</button>
+          <button onclick="deleteNote('${t.id}', ${idx})" style="background:none;border:1px solid var(--accent);color:var(--accent);padding:2px 7px;font-size:11px;cursor:pointer;font-family:inherit;">✕</button>
         </span>` : ''}
       </div>
-      <div style="font-size:13px;color:var(--text);">${n.text}</div>
+      <div style="font-size:13px;">${n.text}</div>
     </div>`;
-  }).join('') : (isIssuerView ? '' : '');
+  }).join('') : '';
 
-  // Add note / attach removal UI (issuer bypass only)
-  const issuerActionsHtml = isIssuerView && t.status !== 'resolved' ? `
+  // Issuer actions bar (bypass view, any status for notes — only open for removal changes)
+  const issuerActionsHtml = isIssuerView ? `
     <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px;">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:10px;">Issuer Actions</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="secondary" style="padding:6px 12px;font-size:12px;" onclick="openAddNoteModal('${t.id}')">Add Note</button>
-        ${!t.removal_notice
+        ${t.status !== 'resolved' ? (!t.removal_notice
           ? `<button class="secondary" style="padding:6px 12px;font-size:12px;" onclick="openAttachRemovalModal('${t.id}')">Attach Removal Notice</button>`
           : `<button class="secondary" style="padding:6px 12px;font-size:12px;" onclick="openEditRemovalModal('${t.id}')">Edit Removal Notice</button>
-             <button class="secondary" style="padding:6px 12px;font-size:12px;border-color:var(--accent);color:var(--accent);" onclick="removeRemovalNotice('${t.id}')">Remove Notice</button>`}
+             <button class="secondary" style="padding:6px 12px;font-size:12px;border-color:var(--accent);color:var(--accent);" onclick="removeRemovalNotice('${t.id}')">Remove Notice</button>`)
+        : ''}
       </div>
     </div>` : '';
 
@@ -898,7 +901,13 @@ function renderFullTicket(container, t, isIssuerView) {
   const log = [];
   log.push({ time: t.created_at, msg: 'Ticket issued', color: 'var(--blue)' });
   if (t.removal_notice) log.push({ time: null, msg: `Removal notice attached — ${formatDeadline(t.removal_deadline, t.created_at)}`, color: '#e6a000' });
-  issuerNotes.forEach(n => log.push({ time: n.time, msg: n.text, color: n.type === 'points' ? 'var(--accent)' : 'var(--blue-dark)' }));
+  issuerNotes.forEach(n => {
+    const sym = n.symbol ? n.symbol + ' ' : '';
+    const pts = n.type === 'points' ? ` (+${n.points} pts)` : '';
+    log.push({ time: n.time, msg: `${sym}${n.text}${pts}`, color: n.color ? (NOTE_COLORS[n.color]?.border || 'var(--blue-dark)') : 'var(--blue-dark)',
+      tag: n.type === 'points' ? 'POINTS' : (n.isQA ? 'QA ADJUSTED' : null) });
+  });
+  if (t.removal_adjusted_at) log.push({ time: t.removal_adjusted_at, msg: `Removal deadline adjusted — ${formatDeadline(t.removal_deadline, t.created_at)}`, color: '#e6a000', tag: 'QA ADJUSTED' });
   if (t.item_removed_at) log.push({ time: t.item_removed_at, msg: 'Recipient reported item removed', color: 'var(--success)' });
   if (t.issuer_removed_at) log.push({ time: t.issuer_removed_at, msg: 'Item impounded', color: '#7b3f00' });
   if (t.appeal_flagged && t.appeal_note) log.push({ time: null, msg: 'Appeal filed by recipient', color: '#e6a000' });
@@ -914,7 +923,10 @@ function renderFullTicket(container, t, isIssuerView) {
         <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--bg);">
           <div style="width:3px;min-width:3px;background:${entry.color};align-self:stretch;border-radius:2px;"></div>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;">${entry.msg}</div>
+            <div style="font-size:13px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <span>${entry.msg}</span>
+              ${entry.tag ? `<span style="background:${entry.color};color:#fff;padding:1px 6px;font-size:10px;font-weight:700;border-radius:2px;">${entry.tag}</span>` : ''}
+            </div>
             ${entry.time ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(entry.time).toLocaleString()}</div>` : ''}
           </div>
         </div>`).join('')}
@@ -1345,84 +1357,35 @@ async function submitIssuerRemoved(id) {
 }
 
 // ── ADD NOTE / COMMENT ───────────────────────────────────────────────────────
-// ── NOTE COLOR / SYMBOL CONSTANTS ───────────────────────────────────────────
-const NOTE_COLOR_OPTIONS = [
-  { key: 'blue',   label: 'Blue',   bg: '#0057a8' },
-  { key: 'red',    label: 'Red',    bg: '#d94f00' },
-  { key: 'orange', label: 'Orange', bg: '#e07000' },
-  { key: 'yellow', label: 'Yellow', bg: '#e6a000' },
-  { key: 'green',  label: 'Green',  bg: '#2a7a2a' },
-  { key: 'purple', label: 'Purple', bg: '#7b2fd4' },
-  { key: 'gray',   label: 'Gray',   bg: '#888888' },
-];
-const NOTE_SYMBOLS = ['', '⚠', '✓', '✗', '★', '!', '?', '→', '🔒', '📋', '📍', '🚨'];
-
-function buildNoteForm(defaultText='', defaultPts=0, defaultColor='blue', defaultSymbol='', showPoints=true) {
-  const colorBtns = NOTE_COLOR_OPTIONS.map(c => `
-    <button type="button" id="ncolor-${c.key}" onclick="selectNoteColor('${c.key}')"
-      style="width:28px;height:28px;background:${c.bg};border:3px solid transparent;border-radius:50%;cursor:pointer;"
-      title="${c.label}"></button>`).join('');
-  const symBtns = NOTE_SYMBOLS.map(s => `
-    <button type="button" id="nsym-${s||'none'}" onclick="selectNoteSymbol(${JSON.stringify(s)})"
-      style="width:30px;height:30px;font-size:14px;border:2px solid var(--border);background:var(--white);cursor:pointer;"
-      title="${s||'None'}">${s||'—'}</button>`).join('');
-  return `
-    <div class="field-group">
-      <label for="note-text">Note <span class="req">*</span></label>
-      <textarea id="note-text" placeholder="Add a comment, observation, or update..." style="min-height:80px;">${defaultText}</textarea>
-    </div>
-    <div class="field-group">
-      <label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block;">Color</label>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;" id="note-color-row">${colorBtns}</div>
-      <input type="hidden" id="note-color" value="${defaultColor}">
-    </div>
-    <div class="field-group">
-      <label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block;">Symbol <span style="font-weight:400;font-size:12px;color:var(--muted)">(optional)</span></label>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;" id="note-sym-row">${symBtns}</div>
-      <input type="hidden" id="note-symbol" value="${defaultSymbol}">
-    </div>
-    ${showPoints ? `
-    <div class="field-group">
-      <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">Add Points <span style="font-weight:400;font-size:12px;color:var(--muted)">(0 = note only)</span></label>
-      <input type="number" id="note-points" min="0" max="10" value="${defaultPts}" style="width:70px;padding:6px 8px;border:1px solid var(--border);font-size:14px;">
-    </div>` : ''}`;
-}
-
-let _noteColor = 'blue', _noteSymbol = '';
-function selectNoteColor(key) {
-  _noteColor = key;
-  document.getElementById('note-color').value = key;
-  NOTE_COLOR_OPTIONS.forEach(c => {
-    const btn = document.getElementById(`ncolor-${c.key}`);
-    if (btn) btn.style.borderColor = c.key === key ? '#000' : 'transparent';
-  });
-}
-function selectNoteSymbol(sym) {
-  _noteSymbol = sym;
-  document.getElementById('note-symbol').value = sym;
-  NOTE_SYMBOLS.forEach(s => {
-    const btn = document.getElementById(`nsym-${s||'none'}`);
-    if (btn) btn.style.borderColor = s === sym ? 'var(--blue)' : 'var(--border)';
-  });
-}
-
 function openAddNoteModal(id) {
   const existing = document.getElementById('add-note-modal');
   if (existing) existing.remove();
-  _noteColor = 'blue'; _noteSymbol = '';
+
+  const t = _ticketCache[id] || {};
+
   const modal = document.createElement('div');
   modal.id = 'add-note-modal';
-  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
   modal.innerHTML = `
-    <div style="background:var(--white);max-width:460px;width:100%;border-top:4px solid var(--blue);margin:auto;">
+    <div style="background:var(--white);max-width:460px;width:100%;border-top:4px solid var(--blue);">
       <div style="background:var(--blue);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:15px;font-weight:700;">Add Note</div>
-        <button onclick="document.getElementById('add-note-modal').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:3px 9px;cursor:pointer;">✕</button>
+        <div style="font-size:15px;font-weight:700;">Add Note / Comment</div>
+        <button onclick="document.getElementById('add-note-modal').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:3px 9px;font-size:13px;cursor:pointer;">✕</button>
       </div>
       <div style="padding:18px;">
         <div id="note-msg"></div>
-        ${buildNoteForm()}
-        <div style="display:flex;gap:10px;margin-top:10px;">
+        <div class="field-group">
+          <label for="note-text">Note <span class="req">*</span></label>
+          <textarea id="note-text" placeholder="Add a comment, observation, or update..." style="min-height:80px;"></textarea>
+        </div>
+        <div class="field-group">
+          <label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block;">Also add points?</label>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <input type="number" id="note-points" min="0" max="10" value="0" style="width:70px;padding:6px 8px;border:1px solid var(--border);font-size:14px;">
+            <span style="font-size:13px;color:var(--muted);">pts to add (0 = note only)</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:6px;">
           <button onclick="submitAddNote('${id}')" style="padding:10px 18px;font-size:13px;">Save Note</button>
           <button class="secondary" onclick="document.getElementById('add-note-modal').remove()" style="padding:10px 16px;font-size:13px;">Cancel</button>
         </div>
@@ -1430,114 +1393,32 @@ function openAddNoteModal(id) {
     </div>`;
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
   document.body.appendChild(modal);
-  setTimeout(() => { selectNoteColor('blue'); selectNoteSymbol(''); }, 10);
 }
 
 async function submitAddNote(id) {
   const text = document.getElementById('note-text').value.trim();
-  const pts = parseInt(document.getElementById('note-points')?.value) || 0;
-  const color = document.getElementById('note-color')?.value || 'blue';
-  const symbol = document.getElementById('note-symbol')?.value || '';
+  const pts = parseInt(document.getElementById('note-points').value) || 0;
   const msgEl = document.getElementById('note-msg');
   if (!text) { msgEl.className = 'msg error'; msgEl.textContent = 'Note text is required.'; msgEl.style.display = 'block'; return; }
+
   const btn = document.querySelector('#add-note-modal button[onclick^="submitAddNote"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
-  const res = await fetch('/api/issuer-note', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, text, points: pts, color, symbol }) });
+
+  const res = await fetch('/api/issuer-note', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, text, points: pts })
+  });
   const result = await res.json();
   if (result.success) { document.getElementById('add-note-modal').remove(); location.reload(); }
   else { msgEl.className = 'msg error'; msgEl.textContent = result.error || 'Failed.'; msgEl.style.display = 'block'; if (btn) { btn.disabled = false; btn.textContent = 'Save Note'; } }
 }
 
-function openEditNoteModal(id, idx) {
-  const t = _ticketCache[id];
-  if (!t) return;
-  let notes = []; try { notes = JSON.parse(t.issuer_notes || '[]'); } catch {}
-  const n = notes[idx];
-  if (!n) return;
-  _noteColor = n.color || 'blue'; _noteSymbol = n.symbol || '';
-  const existing = document.getElementById('edit-note-modal');
-  if (existing) existing.remove();
-  const modal = document.createElement('div');
-  modal.id = 'edit-note-modal';
-  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;';
-  modal.innerHTML = `
-    <div style="background:var(--white);max-width:460px;width:100%;border-top:4px solid var(--blue);margin:auto;">
-      <div style="background:var(--blue);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:15px;font-weight:700;">Edit Note</div>
-        <button onclick="document.getElementById('edit-note-modal').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:3px 9px;cursor:pointer;">✕</button>
-      </div>
-      <div style="padding:18px;">
-        <div id="edit-note-msg"></div>
-        ${buildNoteForm(n.text, n.points || 0, n.color || 'blue', n.symbol || '', false)}
-        <div style="display:flex;gap:10px;margin-top:10px;">
-          <button onclick="submitEditNote('${id}', ${idx})" style="padding:10px 18px;font-size:13px;">Save Changes</button>
-          <button class="secondary" onclick="document.getElementById('edit-note-modal').remove()" style="padding:10px 16px;font-size:13px;">Cancel</button>
-        </div>
-      </div>
-    </div>`;
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-  document.body.appendChild(modal);
-  setTimeout(() => { selectNoteColor(_noteColor); selectNoteSymbol(_noteSymbol); }, 10);
-}
-
-async function submitEditNote(id, idx) {
-  const text = document.getElementById('note-text').value.trim();
-  const color = document.getElementById('note-color')?.value || 'blue';
-  const symbol = document.getElementById('note-symbol')?.value || '';
-  const msgEl = document.getElementById('edit-note-msg');
-  if (!text) { msgEl.className = 'msg error'; msgEl.textContent = 'Note text is required.'; msgEl.style.display = 'block'; return; }
-  const btn = document.querySelector('#edit-note-modal button[onclick^="submitEditNote"]');
-  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
-  const res = await fetch('/api/issuer-note', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, edit_idx: idx, text, color, symbol }) });
-  const result = await res.json();
-  if (result.success) { document.getElementById('edit-note-modal').remove(); location.reload(); }
-  else { msgEl.className = 'msg error'; msgEl.textContent = result.error || 'Failed.'; msgEl.style.display = 'block'; if (btn) { btn.disabled = false; btn.textContent = 'Save Changes'; } }
-}
-
-async function deleteNote(id, idx) {
-  if (!confirm('Delete this note?')) return;
-  const res = await fetch('/api/issuer-note', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, delete_idx: idx }) });
-  const result = await res.json();
-  if (result.success) location.reload();
-  else alert(result.error || 'Failed to delete note.');
-}
-
-// ── ATTACH / REMOVE / EDIT REMOVAL NOTICE ───────────────────────────────────
-function buildRemovalForm(deadline='24hr', note='', customVal='') {
-  return `
-    <div class="field-group">
-      <label for="attach-deadline">Deadline <span class="req">*</span></label>
-      <select id="attach-deadline" onchange="toggleCustomDeadline()" style="margin-bottom:6px;">
-        <option value="immediately" ${deadline==='immediately'?'selected':''}>Immediately</option>
-        <option value="24hr" ${deadline==='24hr'?'selected':''}>Within 24 hours</option>
-        <option value="48hr" ${deadline==='48hr'?'selected':''}>Within 48 hours</option>
-        <option value="72hr" ${deadline==='72hr'?'selected':''}>Within 72 hours</option>
-        <option value="1week" ${deadline==='1week'?'selected':''}>Within 1 week</option>
-        <option value="custom" ${deadline==='custom'||(!['immediately','24hr','48hr','72hr','1week'].includes(deadline)&&deadline)?'selected':''}>Custom date/time</option>
-      </select>
-    </div>
-    <div class="field-group" id="custom-deadline-wrap" style="display:${deadline==='custom'||(!['immediately','24hr','48hr','72hr','1week'].includes(deadline)&&deadline)?'block':'none'};">
-      <label for="attach-custom-dt">Custom Deadline</label>
-      <input type="datetime-local" id="attach-custom-dt" value="${customVal}" style="margin-bottom:6px;">
-    </div>
-    <div class="field-group">
-      <label for="attach-note">Note <span class="opt">(optional)</span></label>
-      <input type="text" id="attach-note" placeholder="e.g. Move to garage, Return to room" value="${note}">
-    </div>`;
-}
-
-function toggleCustomDeadline() {
-  const val = document.getElementById('attach-deadline')?.value;
-  const wrap = document.getElementById('custom-deadline-wrap');
-  if (wrap) wrap.style.display = val === 'custom' ? 'block' : 'none';
-}
-
+// ── ATTACH / REMOVE REMOVAL NOTICE ──────────────────────────────────────────
 function openAttachRemovalModal(id) {
   const existing = document.getElementById('attach-removal-modal');
   if (existing) existing.remove();
+
   const modal = document.createElement('div');
   modal.id = 'attach-removal-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
@@ -1545,13 +1426,26 @@ function openAttachRemovalModal(id) {
     <div style="background:var(--white);max-width:440px;width:100%;border-top:4px solid #e6a000;">
       <div style="background:#e6a000;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;">
         <div style="font-size:15px;font-weight:700;">Attach Removal Notice</div>
-        <button onclick="document.getElementById('attach-removal-modal').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:3px 9px;cursor:pointer;">✕</button>
+        <button onclick="document.getElementById('attach-removal-modal').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:3px 9px;font-size:13px;cursor:pointer;">✕</button>
       </div>
       <div style="padding:18px;">
         <div id="attach-msg"></div>
-        ${buildRemovalForm()}
-        <div style="display:flex;gap:10px;margin-top:10px;">
-          <button onclick="submitAttachRemoval('${id}', false)" style="padding:10px 18px;font-size:13px;background:#e6a000;border:none;color:#fff;cursor:pointer;font-family:inherit;font-weight:600;">Attach Notice</button>
+        <div class="field-group">
+          <label for="attach-deadline">Deadline <span class="req">*</span></label>
+          <select id="attach-deadline" style="margin-bottom:8px;">
+            <option value="immediately">Immediately</option>
+            <option value="24hr" selected>Within 24 hours</option>
+            <option value="48hr">Within 48 hours</option>
+            <option value="72hr">Within 72 hours</option>
+            <option value="1week">Within 1 week</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="attach-note">Note <span class="opt">(optional)</span></label>
+          <input type="text" id="attach-note" placeholder="e.g. Move to garage, Return to room">
+        </div>
+        <div style="display:flex;gap:10px;margin-top:6px;">
+          <button onclick="submitAttachRemoval('${id}')" style="padding:10px 18px;font-size:13px;background:#e6a000;border:none;color:#fff;cursor:pointer;font-family:inherit;font-weight:600;">Attach Notice</button>
           <button class="secondary" onclick="document.getElementById('attach-removal-modal').remove()" style="padding:10px 16px;font-size:13px;">Cancel</button>
         </div>
       </div>
@@ -1560,58 +1454,30 @@ function openAttachRemovalModal(id) {
   document.body.appendChild(modal);
 }
 
-function openEditRemovalModal(id) {
-  const t = _ticketCache[id];
-  if (!t) return;
-  const existing = document.getElementById('attach-removal-modal');
-  if (existing) existing.remove();
-  const isCustom = t.removal_deadline && !['immediately','24hr','48hr','72hr','1week'].includes(t.removal_deadline);
-  const modal = document.createElement('div');
-  modal.id = 'attach-removal-modal';
-  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
-  modal.innerHTML = `
-    <div style="background:var(--white);max-width:440px;width:100%;border-top:4px solid #e6a000;">
-      <div style="background:#e6a000;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:15px;font-weight:700;">Edit Removal Notice</div>
-        <button onclick="document.getElementById('attach-removal-modal').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:3px 9px;cursor:pointer;">✕</button>
-      </div>
-      <div style="padding:18px;">
-        <div id="attach-msg"></div>
-        ${buildRemovalForm(isCustom ? 'custom' : (t.removal_deadline||'24hr'), t.removal_note||'', isCustom ? t.removal_deadline : '')}
-        <div style="display:flex;gap:10px;margin-top:10px;">
-          <button onclick="submitAttachRemoval('${id}', true)" style="padding:10px 18px;font-size:13px;background:#e6a000;border:none;color:#fff;cursor:pointer;font-family:inherit;font-weight:600;">Save Changes</button>
-          <button class="secondary" onclick="document.getElementById('attach-removal-modal').remove()" style="padding:10px 16px;font-size:13px;">Cancel</button>
-        </div>
-      </div>
-    </div>`;
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-  document.body.appendChild(modal);
-}
-
-async function submitAttachRemoval(id, isEdit) {
-  let deadline = document.getElementById('attach-deadline').value;
-  if (deadline === 'custom') {
-    deadline = document.getElementById('attach-custom-dt')?.value || '';
-    if (!deadline) {
-      const msg = document.getElementById('attach-msg');
-      msg.className = 'msg error'; msg.textContent = 'Please select a custom date/time.'; msg.style.display = 'block'; return;
-    }
-  }
+async function submitAttachRemoval(id) {
+  const deadline = document.getElementById('attach-deadline').value;
   const note = document.getElementById('attach-note').value.trim() || null;
   const msgEl = document.getElementById('attach-msg');
   const btn = document.querySelector('#attach-removal-modal button[onclick^="submitAttachRemoval"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
-  const res = await fetch('/api/attach-removal', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, deadline, note, is_edit: isEdit }) });
+
+  const res = await fetch('/api/attach-removal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, deadline, note })
+  });
   const result = await res.json();
   if (result.success) { document.getElementById('attach-removal-modal').remove(); location.reload(); }
-  else { msgEl.className = 'msg error'; msgEl.textContent = result.error || 'Failed.'; msgEl.style.display = 'block'; if (btn) { btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Attach Notice'; } }
+  else { msgEl.className = 'msg error'; msgEl.textContent = result.error || 'Failed.'; msgEl.style.display = 'block'; if (btn) { btn.disabled = false; btn.textContent = 'Attach Notice'; } }
 }
 
 async function removeRemovalNotice(id) {
   if (!confirm('Remove the removal notice from this ticket?')) return;
-  const res = await fetch('/api/attach-removal', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, remove: true }) });
+  const res = await fetch('/api/attach-removal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, remove: true })
+  });
   const result = await res.json();
   if (result.success) location.reload();
   else alert(result.error || 'Failed to remove notice.');
