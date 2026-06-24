@@ -188,7 +188,7 @@ function showMsg(el, text, type) {
   el.style.display = 'block';
 }
 
-async function compressImage(file, maxWidth = 1000, quality = 0.7) {
+async function compressImage(file, maxWidth = 1000, quality = 0.7, meta = {}) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -201,19 +201,67 @@ async function compressImage(file, maxWidth = 1000, quality = 0.7) {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
 
-        // Timestamp watermark
+        // ── Watermark ─────────────────────────────────────────────────────
         const now = new Date();
         const stamp = now.toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-        const fontSize = Math.max(12, Math.round(w * 0.025));
+        const fontSize = Math.max(11, Math.round(w * 0.022));
+        const smallFont = Math.max(9, Math.round(w * 0.018));
+        const padding = 7;
         ctx.font = `bold ${fontSize}px monospace`;
-        const padding = 8;
-        const textW = ctx.measureText(stamp).width;
-        // Background bar
-        ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        ctx.fillRect(0, 0, textW + padding * 2, fontSize + padding * 2);
-        // Text
+
+        // Build lines
+        const line1 = `14-T  ${stamp}`;
+        const line2Parts = [];
+        if (meta.item) line2Parts.push(meta.item);
+        if (meta.serial) line2Parts.push(`S/N: ${meta.serial}`);
+        const line2 = line2Parts.join('   ');
+
+        const line1W = ctx.measureText(line1).width;
+        ctx.font = `${smallFont}px monospace`;
+        const line2W = line2 ? ctx.measureText(line2).width : 0;
+        const boxW = Math.max(line1W, line2W) + padding * 2;
+        const barcodeH = meta.serial ? Math.max(14, Math.round(w * 0.018)) : 0;
+        const line1H = fontSize + padding;
+        const line2H = line2 ? smallFont + 4 : 0;
+        const boxH = line1H + line2H + barcodeH + padding;
+
+        // Background
+        ctx.fillStyle = 'rgba(0,0,0,0.62)';
+        ctx.fillRect(0, 0, boxW, boxH);
+
+        // Line 1 — "14-T  date/time"
+        ctx.font = `bold ${fontSize}px monospace`;
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(stamp, padding, fontSize + padding - 2);
+        ctx.fillText(line1, padding, fontSize + padding - 3);
+
+        // Line 2 — item / serial
+        if (line2) {
+          ctx.font = `${smallFont}px monospace`;
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
+          ctx.fillText(line2, padding, line1H + smallFont);
+        }
+
+        // Mini barcode from serial number (bottom of watermark box)
+        if (meta.serial) {
+          const barcodeY = line1H + line2H + 2;
+          const barcodeW = boxW - padding * 2;
+          const barCode = meta.serial.replace(/[^A-Z0-9]/gi, '');
+          // Convert chars to binary-ish pattern
+          let bits = '';
+          for (let i = 0; i < barCode.length; i++) {
+            const v = barCode.charCodeAt(i);
+            bits += v.toString(2).padStart(7, '0');
+          }
+          // Add quiet zone bits
+          bits = '0000' + bits + '0000';
+          const barW = barcodeW / bits.length;
+          ctx.fillStyle = '#ffffff';
+          for (let i = 0; i < bits.length; i++) {
+            if (bits[i] === '1') {
+              ctx.fillRect(padding + i * barW, barcodeY, Math.max(1, barW - 0.5), barcodeH - 2);
+            }
+          }
+        }
 
         resolve(canvas.toDataURL('image/jpeg', quality));
       };
@@ -546,12 +594,16 @@ if (document.getElementById('new-ticket-form')) {
         : (locationInput ? locationInput.value.trim() : '');
       if (!locationVal) { showMsg(msgEl, 'Location is required.', 'error'); submitBtn.disabled = false; submitBtn.textContent = 'Issue Ticket'; return; }
 
-      const photoBase64 = await compressImage(primaryPhoto);
+      const photoMeta = {
+        item: document.getElementById('item_name')?.value.trim() || null,
+        serial: document.getElementById('serial_number')?.value.trim() || null,
+      };
+      const photoBase64 = await compressImage(primaryPhoto, 1000, 0.7, photoMeta);
 
       // Compress extra photos — filter out nulls (slots where user never picked a file)
       const extraBase64s = [];
       for (const f of extraPhotoFiles.filter(Boolean)) {
-        try { extraBase64s.push(await compressImage(f)); } catch { /* skip */ }
+        try { extraBase64s.push(await compressImage(f, 1000, 0.7, photoMeta)); } catch { /* skip */ }
       }
 
       const violation = violationSelect.value;
