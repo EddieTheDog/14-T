@@ -749,7 +749,9 @@ function formatDeadline(deadline, issuedAt) {
   } catch { return deadline; }
 }
 
+let _currentTicket = null;
 function renderFullTicket(container, t, isIssuerView) {
+  _currentTicket = t; // store for edit/delete note functions on ticket page
   const displayName = t.claimed_name || t.person_name;
   const dateStr = new Date(t.created_at).toLocaleString();
   const penalInfo = t.penal_code ? PENAL_CODES.find(p => p.code === t.penal_code) : null;
@@ -885,33 +887,52 @@ function renderFullTicket(container, t, isIssuerView) {
       </div>
     </div>` : '';
 
-  // Activity log
-  const log = [];
-  log.push({ time: t.created_at, msg: 'Ticket issued', color: 'var(--blue)' });
-  if (t.removal_notice) log.push({ time: null, msg: `Removal notice — ${formatDeadline(t.removal_deadline, t.created_at)}`, color: '#e6a000' });
-  issuerNotes.filter(n => !n.deleted).forEach(n => {
-    const label = n.type === 'points' ? `Note (+${n.points} pts): ${n.text}` : `Note: ${n.text}`;
-    log.push({ time: n.time, msg: label, color: n.type === 'points' ? 'var(--accent)' : 'var(--blue-dark)' });
-    if (n.edited) log.push({ time: n.editedAt || null, msg: 'Note edited — quality assurance', color: 'var(--muted)' });
+  // Activity log — all events collected with timestamps then sorted
+  const logEvents = [];
+
+  const addLog = (time, msg, color) => logEvents.push({ time: time ? new Date(time).getTime() : null, timeStr: time, msg, color });
+
+  addLog(t.created_at, 'Ticket issued', 'var(--blue)');
+
+  // Removal notice events — use attached_at if present, else created_at as proxy
+  if (t.removal_attached_at) addLog(t.removal_attached_at, `Removal notice attached — ${formatDeadline(t.removal_deadline, t.created_at)}`, '#e6a000');
+  else if (t.removal_notice) addLog(t.created_at, `Removal notice — ${formatDeadline(t.removal_deadline, t.created_at)}`, '#e6a000');
+  if (t.removal_adjusted_at) addLog(t.removal_adjusted_at, `Removal notice adjusted — ${formatDeadline(t.removal_deadline, t.created_at)} — quality assurance`, '#e6a000');
+  if (t.removal_removed_at) addLog(t.removal_removed_at, 'Removal notice removed — quality assurance', 'var(--muted)');
+
+  // Issuer notes — include deleted ones in log with their deletedAt time
+  issuerNotes.forEach(n => {
+    if (n.deleted) {
+      addLog(n.deletedAt || n.time, `Note removed — quality assurance`, 'var(--muted)');
+    } else {
+      const label = n.type === 'points' ? `Note (+${n.points} pts): ${n.text}` : `Note: ${n.text}`;
+      addLog(n.time, label, n.type === 'points' ? 'var(--accent)' : 'var(--blue-dark)');
+      if (n.edited) addLog(n.editedAt, 'Note edited — quality assurance', 'var(--muted)');
+    }
   });
-  if (t.removal_adjusted_at) log.push({ time: t.removal_adjusted_at, msg: `Removal notice adjusted — ${formatDeadline(t.removal_deadline, t.created_at)} — quality assurance`, color: '#e6a000' });
-  if (t.item_removed_at) log.push({ time: t.item_removed_at, msg: 'Recipient reported item removed', color: 'var(--success)' });
-  if (t.issuer_removed_at) log.push({ time: t.issuer_removed_at, msg: 'Item impounded', color: '#7b3f00' });
-  if (t.appeal_flagged && t.appeal_note) log.push({ time: null, msg: 'Appeal filed by recipient', color: '#e6a000' });
-  if (t.appeal_response) log.push({ time: null, msg: 'Response sent by issuer', color: 'var(--blue)' });
-  if (t.appeal_declined) log.push({ time: null, msg: 'Appeal declined', color: 'var(--accent)' });
-  if (t.appeal_response_locked) log.push({ time: null, msg: 'Appeal thread locked', color: 'var(--muted)' });
-  if (t.status === 'resolved') log.push({ time: null, msg: 'Ticket resolved', color: 'var(--success)' });
+
+  if (t.item_removed_at) addLog(t.item_removed_at, 'Recipient reported item removed', 'var(--success)');
+  if (t.issuer_removed_at) addLog(t.issuer_removed_at, 'Item impounded', '#7b3f00');
+  if (t.appeal_flagged && t.appeal_note) addLog(null, 'Appeal filed by recipient', '#e6a000');
+  if (t.appeal_response) addLog(null, 'Response sent by issuer', 'var(--blue)');
+  if (t.appeal_declined) addLog(null, 'Appeal declined', 'var(--accent)');
+  if (t.appeal_response_locked) addLog(null, 'Appeal thread locked', 'var(--muted)');
+  if (t.status === 'resolved') addLog(null, 'Ticket resolved', 'var(--success)');
+
+  // Sort: timestamped events by time, null-time events go to end in original order
+  const timestamped = logEvents.filter(e => e.time !== null).sort((a, b) => a.time - b.time);
+  const untimed = logEvents.filter(e => e.time === null);
+  const sortedLog = [...timestamped, ...untimed];
 
   const logHtml = `
     <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:14px;">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;">Activity Log</div>
-      ${log.map(entry => `
+      ${sortedLog.map(entry => `
         <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--bg);">
           <div style="width:3px;min-width:3px;background:${entry.color};align-self:stretch;border-radius:2px;"></div>
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;">${entry.msg}</div>
-            ${entry.time ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(entry.time).toLocaleString()}</div>` : ''}
+            ${entry.timeStr ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(entry.timeStr).toLocaleString()}</div>` : ''}
           </div>
         </div>`).join('')}
     </div>`;
@@ -1403,7 +1424,7 @@ function openAttachRemovalModal(id, isEdit) {
   const existing = document.getElementById('attach-removal-modal');
   if (existing) existing.remove();
 
-  const t = _ticketCache[id] || {};
+  const t = _ticketCache[id] || _currentTicket || {};
   const title = isEdit ? 'Edit Removal Notice' : 'Attach Removal Notice';
 
   const modal = document.createElement('div');
@@ -1470,12 +1491,12 @@ async function submitAttachRemoval(id, isEdit) {
 
 // ── EDIT NOTE ────────────────────────────────────────────────────────────────
 function openEditNoteModal(id, idx) {
-  const t = _ticketCache[id];
-  if (!t) return;
+  const t = _ticketCache[id] || _currentTicket;
+  if (!t) { alert('Could not load ticket data.'); return; }
   let notes = [];
   try { notes = JSON.parse(t.issuer_notes || '[]'); } catch {}
   const note = notes[idx];
-  if (!note) return;
+  if (!note) { alert('Note not found.'); return; }
 
   const existing = document.getElementById('edit-note-modal');
   if (existing) existing.remove();
