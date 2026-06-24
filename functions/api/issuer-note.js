@@ -15,19 +15,22 @@ export async function onRequest(context) {
     let notes = [];
     if (ticket.issuer_notes) { try { notes = JSON.parse(ticket.issuer_notes); } catch {} }
 
+    const now = new Date().toISOString();
+
     if (deleteMode && editIdx !== undefined) {
       if (!notes[editIdx]) return new Response(JSON.stringify({ error: 'Note not found.' }), { status: 404, headers });
       notes[editIdx].deleted = true;
+      notes[editIdx].deletedAt = now;
     } else if (editMode && editIdx !== undefined) {
       if (!notes[editIdx]) return new Response(JSON.stringify({ error: 'Note not found.' }), { status: 404, headers });
       if (!text) return new Response(JSON.stringify({ error: 'Text required.' }), { status: 400, headers });
       notes[editIdx].text = text;
       notes[editIdx].edited = true;
-      notes[editIdx].editedAt = new Date().toISOString();
+      notes[editIdx].editedAt = now;
     } else {
       if (!text) return new Response(JSON.stringify({ error: 'Text required.' }), { status: 400, headers });
       const addPts = parseInt(points) || 0;
-      notes.push({ text, points: addPts, type: addPts > 0 ? 'points' : 'comment', time: new Date().toISOString() });
+      notes.push({ text, points: addPts, type: addPts > 0 ? 'points' : 'comment', time: now });
       if (addPts > 0) {
         const newTotal = (ticket.points || 0) + addPts;
         await env.DB.prepare(`UPDATE tickets SET points = ? WHERE id = ?`).bind(newTotal, id).run();
