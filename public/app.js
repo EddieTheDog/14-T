@@ -1667,13 +1667,16 @@ const _filters = { sort: 'newest', person: '', severity: '', status: '' };
 
 function getTicketStatus(t) {
   const needsResponse = t.appeal_flagged && !t.appeal_response && !t.appeal_declined && t.status !== 'resolved';
-  const hasReply = t.appeal_flagged && t.appeal_response && !t.appeal_response_locked && t.status !== 'resolved';
+  const hasReply = t.appeal_flagged && t.appeal_response && !t.appeal_response_locked && !t.appeal_declined && t.status !== 'resolved';
   if (t.status === 'resolved') return { label: 'RESOLVED', cls: 'resolved', key: 'resolved' };
-  if (t.appeal_declined) return { label: 'DECLINED', cls: 'severe', key: 'declined' };
+  if (t.appeal_declined && !t.item_removed_at) return { label: 'DECLINED', cls: 'severe', key: 'declined' };
   if (t.status === 'locked') return { label: 'LOCKED', cls: 'locked', key: 'locked' };
-  if (t.item_removed_at && t.status !== 'resolved') return { label: 'VERIFY', cls: 'flagged', key: 'verify' };
+  // Both appeal and self-report — show combined
+  if (t.appeal_flagged && t.item_removed_at) return { label: 'APPEAL+VERIFY', cls: 'flagged', key: 'appeal' };
+  if (t.item_removed_at) return { label: 'VERIFY', cls: 'flagged', key: 'verify' };
   if (needsResponse) return { label: 'APPEAL', cls: 'flagged', key: 'appeal' };
   if (hasReply) return { label: 'REPLY', cls: 'flagged', key: 'reply' };
+  if (t.appeal_declined) return { label: 'DECLINED', cls: 'severe', key: 'declined' };
   return { label: 'OPEN', cls: 'open', key: 'open' };
 }
 
@@ -2026,6 +2029,17 @@ async function declineAppeal(id) {
   showResolveModal(id, 'decline');
 }
 
+async function reopenAppeal(id) {
+  const res = await fetch('/api/appeal-decline', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, reopen: true })
+  });
+  const data = await res.json();
+  if (data.success) { document.getElementById('appeal-modal')?.remove(); location.reload(); }
+  else alert(data.error || 'Failed to reopen.');
+}
+
 async function lockThread(id) {
   const res = await fetch('/api/appeal-lock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
   const data = await res.json();
@@ -2039,11 +2053,25 @@ function openAppealModal(id) {
   const existing = document.getElementById('appeal-modal');
   if (existing) existing.remove();
 
-  const canRespond = t.appeal_flagged && t.status !== 'resolved';
+  const canRespond = t.appeal_flagged && t.status !== 'resolved' && !t.appeal_declined;
   const canLock = t.appeal_response && !t.appeal_response_locked && t.status !== 'locked' && t.status !== 'resolved';
   const canDecline = !t.appeal_declined && t.status !== 'resolved';
+  const canReopen = t.appeal_declined && t.status !== 'resolved'; // declined but not closed — can reopen
 
   let thread = '';
+
+  // If item was self-reported, show that at the top since it may need action first
+  if (t.item_removed_at && t.status !== 'resolved') {
+    thread += `<div style="background:#e8f5e8;border:1px solid var(--success);padding:12px;margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Recipient Says Item Was Removed — ${new Date(t.item_removed_at).toLocaleString()}</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:8px;">Verify whether the item is actually gone before acting on the appeal.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button onclick="verifyItemRemoved('${t.id}', true); document.getElementById('appeal-modal').remove();" style="background:var(--success);color:#fff;padding:6px 12px;font-size:12px;border:none;cursor:pointer;font-family:inherit;font-weight:600;">Item is Gone</button>
+        <button onclick="verifyItemRemoved('${t.id}', false); document.getElementById('appeal-modal').remove();" style="background:var(--accent);color:#fff;padding:6px 12px;font-size:12px;border:none;cursor:pointer;font-family:inherit;">Item Still There</button>
+      </div>
+    </div>`;
+  }
+
   if (t.appeal_note) {
     thread += `<div style="background:#fff8e6;border:1px solid var(--warn);padding:12px;margin-bottom:10px;">
       <div style="font-size:11px;font-weight:700;color:#a07000;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Their Appeal</div>
@@ -2059,7 +2087,7 @@ function openAppealModal(id) {
     </div>`;
   }
   if (t.appeal_declined) {
-    thread += `<div style="background:#fde8e8;border:1px solid var(--accent);padding:10px;margin-bottom:10px;font-size:13px;font-weight:700;color:var(--accent);">✗ Appeal Declined — Points Remain</div>`;
+    thread += `<div style="background:#fde8e8;border:1px solid var(--accent);padding:10px;margin-bottom:10px;font-size:13px;font-weight:700;color:var(--accent);">Appeal Declined — Points Remain</div>`;
   }
 
   const respondForm = canRespond ? `
@@ -2081,17 +2109,16 @@ function openAppealModal(id) {
     </div>` : '';
 
   let actionBtns = '';
-  // Show action buttons if ticket isn't fully closed, OR if it's resolved but has an active contest
   const canAct = t.status !== 'resolved' || (t.removal_notice && t.appeal_flagged);
   if (canAct) {
     if (t.status !== 'resolved') {
       actionBtns += `<button class="success" style="padding:8px 16px;font-size:13px;" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
       actionBtns += ` <button class="secondary" style="padding:8px 16px;font-size:13px;" onclick="resolveTicket('${t.id}', true)">Dismiss (Remove Points)</button>`;
     } else {
-      // Resolved impound contest — can adjust points or reopen
       actionBtns += `<button style="background:var(--success);color:#fff;padding:8px 16px;font-size:13px;border:none;cursor:pointer;font-family:inherit;" onclick="openPointsModal('${t.id}', 'verified')">Adjust Points</button>`;
     }
     if (canDecline) actionBtns += ` <button class="danger" style="padding:8px 16px;font-size:13px;" onclick="declineAppeal('${t.id}')">Decline Appeal</button>`;
+    if (canReopen) actionBtns += ` <button style="background:#555;color:#fff;padding:8px 16px;font-size:13px;border:none;cursor:pointer;font-family:inherit;" onclick="reopenAppeal('${t.id}')">Reopen Appeal</button>`;
     if (canLock) actionBtns += ` <button style="background:#333;padding:8px 16px;font-size:13px;" onclick="lockThread('${t.id}')">Lock Thread</button>`;
   }
 
