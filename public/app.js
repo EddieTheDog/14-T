@@ -873,7 +873,8 @@ function renderFullTicket(container, t, isIssuerView) {
         <div id="appeal-msg"></div>
         <div class="field-group">
           <label for="appeal-note">Explanation <span class="req">*</span></label>
-          <textarea id="appeal-note" placeholder="${isImpound ? 'Explain why this impound should be contested...' : 'Explain your situation...'}"></textarea>
+          <textarea id="appeal-note" maxlength="600" oninput="document.getElementById('appeal-char-count').textContent=600-this.value.length" placeholder="${isImpound ? 'Explain why this impound should be contested...' : 'Explain your situation...'}"></textarea>
+          <div style="font-size:11px;color:var(--muted);text-align:right;margin-top:-12px;margin-bottom:8px;"><span id="appeal-char-count">600</span> characters remaining</div>
         </div>
         <div class="field-group">
           <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
@@ -893,7 +894,8 @@ function renderFullTicket(container, t, isIssuerView) {
         <div id="appeal-msg"></div>
         <div class="field-group">
           <label for="appeal-note">Your Reply <span class="req">*</span></label>
-          <textarea id="appeal-note" placeholder="Reply to the issuer's response..."></textarea>
+          <textarea id="appeal-note" maxlength="600" oninput="document.getElementById('appeal-char-count').textContent=600-this.value.length" placeholder="Reply to the issuer's response..."></textarea>
+          <div style="font-size:11px;color:var(--muted);text-align:right;margin-top:-12px;margin-bottom:8px;"><span id="appeal-char-count">600</span> characters remaining</div>
         </div>
         <div class="field-group">
           <label for="appeal-photo">Supporting Photo <span class="opt">(optional)</span></label>
@@ -2156,11 +2158,11 @@ if (document.getElementById('print-view')) {
       else activeVariant = 'standard';
     }
 
-    const qrId = (suffix) => `qr-code-${suffix}`;
+    const qrImg = (size = 140) => `<img src="https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}" width="${size}" height="${size}" alt="QR Code" style="display:block;margin:0 auto;">`;
 
-    const qrBlock = (suffix) => `
+    const qrBlock = () => `
       <div style="border-top:1px dashed #000;margin-top:10px;padding-top:10px;text-align:center;">
-        <div id="${qrId(suffix)}" style="display:inline-block;"></div>
+        ${qrImg(140)}
         <div style="font-size:9px;margin-top:5px;word-break:break-all;">${url}</div>
         <div style="font-size:9px;margin-top:3px;font-style:italic;">Scan to view this citation</div>
       </div>`;
@@ -2240,17 +2242,8 @@ if (document.getElementById('print-view')) {
       <div id="receipt-unknown"  style="${activeVariant === 'unknown'  ? '' : 'display:none'}">${receiptUnknown}</div>
     `;
 
-    // QR codes
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-    script.onload = () => {
-      ['std','rem','unk'].forEach(suffix => {
-        const el = document.getElementById(`qr-code-${suffix}`);
-        if (el) new QRCode(el, { text: url, width: 140, height: 140, colorDark: '#000000', colorLight: '#ffffff' });
-      });
-      setTimeout(() => window.print(), 900);
-    };
-    document.head.appendChild(script);
+    // QR images load from API — give them a moment before auto-print
+    setTimeout(() => window.print(), 1200);
   });
 }
 
