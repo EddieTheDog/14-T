@@ -859,8 +859,9 @@ function renderFullTicket(container, t, isIssuerView) {
     && !t.appeal_response_locked
     && t.status !== 'locked'
     && !(t.status === 'resolved' && !t.removal_notice)
-    // If they self-reported removal, they can't also file an appeal unless they already had one in progress
-    && !(t.item_removed_at && !t.appeal_flagged);
+    && !(t.item_removed_at && !t.appeal_flagged)
+    // If appeal was accepted and cleared (appeal_flagged=0, points=0) but removal still open → can file new appeal about the removal notice itself
+    ; // no additional block needed — appeal_flagged=0 means fresh form shows
 
   let appealSection = '';
   if (canAppeal) {
@@ -2040,6 +2041,17 @@ async function reopenAppeal(id) {
   else alert(data.error || 'Failed to reopen.');
 }
 
+async function acceptAppeal(id, keepRemovalOpen) {
+  const res = await fetch('/api/accept-appeal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, keep_removal_open: keepRemovalOpen })
+  });
+  const data = await res.json();
+  if (data.success) { document.getElementById('appeal-modal')?.remove(); location.reload(); }
+  else alert(data.error || 'Failed to accept appeal.');
+}
+
 async function lockThread(id) {
   const res = await fetch('/api/appeal-lock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
   const data = await res.json();
@@ -2110,10 +2122,27 @@ function openAppealModal(id) {
 
   let actionBtns = '';
   const canAct = t.status !== 'resolved' || (t.removal_notice && t.appeal_flagged);
+  const hasActiveRemoval = t.removal_notice && !t.issuer_removed_at && t.status !== 'resolved';
+
   if (canAct) {
     if (t.status !== 'resolved') {
-      actionBtns += `<button class="success" style="padding:8px 16px;font-size:13px;" onclick="resolveTicket('${t.id}', false)">Resolve</button>`;
-      actionBtns += ` <button class="secondary" style="padding:8px 16px;font-size:13px;" onclick="resolveTicket('${t.id}', true)">Dismiss (Remove Points)</button>`;
+      // Accept Appeal — removes points, closes appeal thread
+      if (hasActiveRemoval) {
+        // Two accept options: keep removal open vs fully close
+        actionBtns += `
+          <div style="width:100%;margin-bottom:8px;">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:6px;">Accept Appeal (remove points)</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button style="background:var(--success);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;font-weight:600;" onclick="acceptAppeal('${t.id}', true)">Accept — Keep Removal Notice Open</button>
+              <button style="background:var(--success);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;opacity:0.8;" onclick="acceptAppeal('${t.id}', false)">Accept — Close Everything</button>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">"Keep Open" removes their fine but the removal notice deadline still stands.</div>
+          </div>`;
+        actionBtns += `<button class="secondary" style="padding:8px 14px;font-size:12px;" onclick="resolveTicket('${t.id}', false)">Resolve (keep points)</button>`;
+      } else {
+        actionBtns += `<button class="success" style="padding:8px 16px;font-size:13px;" onclick="acceptAppeal('${t.id}', false)">Accept Appeal (remove points)</button>`;
+        actionBtns += ` <button class="secondary" style="padding:8px 16px;font-size:13px;" onclick="resolveTicket('${t.id}', false)">Resolve (keep points)</button>`;
+      }
     } else {
       actionBtns += `<button style="background:var(--success);color:#fff;padding:8px 16px;font-size:13px;border:none;cursor:pointer;font-family:inherit;" onclick="openPointsModal('${t.id}', 'verified')">Adjust Points</button>`;
     }
