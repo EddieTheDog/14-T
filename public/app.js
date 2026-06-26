@@ -17,6 +17,7 @@ const PENAL_CODES = [
   { code: '14T-110', label: 'Furniture Misplacement', desc: 'Furniture or large item moved and not returned to its designated location.', category: 'abandonment' },
   { code: '14T-111', label: 'Vehicle — Unauthorized Parking', desc: 'Bicycle, scooter, or vehicle left in an unauthorized or obstructive location.', category: 'abandonment' },
   { code: '14T-112', label: 'Repeat Abandonment Offense', desc: 'Second or subsequent abandonment violation by the same party within a 30-day period.', category: 'abandonment' },
+  { code: '14T-112-B', label: 'Repeat Item Abandonment Offense', desc: 'Repeatedly abandoning the same item/items in a 30-day period.', category: 'abandonment' },
 
   // § 200 — Cleanliness & Sanitation
   { code: '14T-200', label: 'Dish / Utensil Left Out', desc: 'Dirty dish, cup, or utensil left outside the kitchen or sink area.', category: 'cleanliness' },
