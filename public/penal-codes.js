@@ -52,6 +52,9 @@ const PENAL_CODES = [
   // § 900 — Other
   { code: '14T-900', label: 'Other / Custom', desc: '', category: 'other' },
   { code: '14T-900-B', label: 'None Needed', desc: '', category: 'other' },
+
+  // § 100-B — Test
+  { code: '14T-101-B', label: 'Test', desc: 'This is a Test', category: 'test' },
 ];
 
 const CATEGORY_LABELS = {
@@ -59,7 +62,8 @@ const CATEGORY_LABELS = {
   cleanliness: '§ 200 — Cleanliness & Sanitation',
   noise:       '§ 300 — Noise & Disturbance',
   property:    '§ 400 — Property',
-  other:       '§ 900 — Other'
+  other:       '§ 900 — Other',
+  test:       '§ 100-b — Test'
 };
 
 // ── QUICK-ISSUE PRESETS ───────────────────────────────────────────────────────
