@@ -54,7 +54,7 @@ const PENAL_CODES = [
   { code: '14T-900-B', label: 'None Needed', desc: '', category: 'other' },
 
   // § 100-B — Test
-  { code: '14T-101-B', label: 'Test', desc: 'This is a Test', category: 'test' },
+  { code: '14T-101-B', label: 'Test', desc: 'This is a test; this used penal code picker.', category: 'test' },
 ];
 
 const CATEGORY_LABELS = {
@@ -140,5 +140,14 @@ const QUICK_PRESETS = [
     description: 'Bicycle, scooter, or vehicle left in an unauthorized or obstructive location.',
     removal_notice: true,
     removal_deadline: '24hr',
+  },
+  {
+    label: 'Test',
+    icon: '🛠️',
+    violation_type: 'notice',
+    penal_code: '14T-101-B',
+    description: 'This is a test; this used presets.',
+    removal_notice: false,
+    removal_deadline: null,
   },
 ];
