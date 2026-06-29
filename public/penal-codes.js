@@ -147,7 +147,7 @@ const QUICK_PRESETS = [
     violation_type: 'notice',
     penal_code: '14T-101-B',
     description: 'This is a test; this used presets.',
-    location: 'Hallway',
+    location: 'hallway',
     removal_notice: false,
     removal_deadline: null,
   },
