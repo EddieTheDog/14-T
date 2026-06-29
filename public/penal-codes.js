@@ -50,7 +50,8 @@ const PENAL_CODES = [
   { code: '14T-402', label: 'Borrowed Item — Not Returned', desc: 'Item borrowed and not returned within the agreed or reasonable timeframe.', category: 'property' },
 
   // § 900 — Other
-  { code: '14T-900', label: 'Other / Custom', desc: '', category: 'other' }
+  { code: '14T-900', label: 'Other / Custom', desc: '', category: 'other' },
+  { code: '14T-900-B', label: 'None Needed', desc: '', category: 'other' },
 ];
 
 const CATEGORY_LABELS = {
