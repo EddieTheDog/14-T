@@ -32,8 +32,8 @@ const API = {
     const res = await fetch('/api/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, name }) });
     return res.json();
   },
-  async resolve(id, dismiss) {
-    const res = await fetch('/api/resolve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, dismiss }) });
+  async resolve(id, dismiss, verifyResult, verifyNote) {
+    const res = await fetch('/api/resolve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, dismiss, verify_result: verifyResult || null, verify_note: verifyNote || null }) });
     return res.json();
   },
   async appeal(id, note, photoBase64) {
@@ -941,11 +941,11 @@ function renderFullTicket(container, t, isIssuerView) {
         } else if (selfReported && !resolved) {
           if (isIssuerView) {
             removalContent += `
-              <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;background:#e8f5e8;border:1px solid var(--success);padding:10px;margin-top:10px;">
-                <div style="font-size:13px;font-weight:700;color:var(--success);margin-bottom:8px;">Recipient says item was removed — ${new Date(t.item_removed_at).toLocaleString()}</div>
+              <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:12px;">
+                <div style="font-size:13px;font-weight:700;color:var(--success);margin-bottom:10px;">Recipient says item was removed — ${new Date(t.item_removed_at).toLocaleString()}</div>
                 <div class="field-group">
-                  <label for="ir-verify-note" style="font-size:12px;">Add a note <span style="font-weight:400;color:var(--muted)">(optional — e.g. "Left trash behind")</span></label>
-                  <input type="text" id="ir-verify-note" placeholder="e.g. Area was left messy" style="margin-bottom:8px;">
+                  <label for="ir-verify-note" style="font-size:12px;">Add a note <span style="font-weight:400;color:var(--muted)">(optional — e.g. "Left trash behind", "Item still present")</span></label>
+                  <input type="text" id="ir-verify-note" placeholder="Optional note..." style="margin-bottom:10px;">
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                   <button onclick="verifyItemRemoved('${t.id}', true)" style="background:var(--success);color:#fff;padding:8px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;font-weight:600;">Item is Gone</button>
@@ -961,11 +961,21 @@ function renderFullTicket(container, t, isIssuerView) {
 
         // ── SELF-REPORTED: resolved after verification ──
         } else if (selfReported && resolved) {
-          // Use item_removed_note as proxy for "they were told it was confirmed" — use points as signal
-          const wasConfirmed = t.points === 0;
-          removalContent += wasConfirmed
-            ? `<div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;font-weight:600;color:var(--success);">Removal confirmed — ticket closed.</div>`
-            : `<div style="margin-top:10px;background:#fde8e8;border:1px solid var(--accent);padding:10px;font-size:13px;font-weight:600;color:var(--accent);">Item was verified as still there. Points remain.</div>`;
+          const gone = t.item_verify_result === 'gone' || (!t.item_verify_result && t.points === 0);
+          const verifyNote = t.item_verify_note || '';
+          if (gone) {
+            removalContent += `
+              <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;font-weight:600;color:var(--success);">
+                Item is gone — ticket closed.
+                ${verifyNote ? `<div style="font-size:12px;font-weight:400;color:var(--muted);margin-top:4px;">${verifyNote}</div>` : ''}
+              </div>`;
+          } else {
+            removalContent += `
+              <div style="margin-top:10px;background:#fde8e8;border:1px solid var(--accent);padding:10px;font-size:13px;font-weight:600;color:var(--accent);">
+                Item was still there.
+                ${verifyNote ? `<div style="font-size:12px;font-weight:400;color:var(--text);margin-top:4px;">${verifyNote}</div>` : ''}
+              </div>`;
+          }
 
         // ── OPEN: recipient can report removal ──
         } else if (!isIssuerView && !resolved) {
@@ -1191,10 +1201,12 @@ async function confirmPointsAction(id) {
   const t = _ticketCache[id];
   const fullPoints = t ? t.points : 0;
   const half = Math.ceil(fullPoints / 2);
+  const verifyNote = modal?.dataset.verifyNote || null;
+  const verifyResult = modal?.dataset.context === 'verified' ? 'gone' : modal?.dataset.context === 'notmoved' ? 'still_there' : null;
 
   let result;
   if (_selectedPointsOption === 'none') {
-    result = await API.resolve(id, true);
+    result = await API.resolve(id, true, verifyResult, verifyNote);
   } else if (_selectedPointsOption === 'half' && fullPoints > 1) {
     const res = await fetch('/api/adjust-points', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, points: half }) });
@@ -1204,9 +1216,9 @@ async function confirmPointsAction(id) {
       if (btn) { btn.disabled = false; btn.textContent = 'Confirm'; }
       return;
     }
-    result = await API.resolve(id, false);
+    result = await API.resolve(id, false, verifyResult, verifyNote);
   } else {
-    result = await API.resolve(id, false);
+    result = await API.resolve(id, false, verifyResult, verifyNote);
   }
 
   if (result?.success) { modal?.remove(); location.reload(); }
