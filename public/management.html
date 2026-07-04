@@ -1,0 +1,179 @@
+<!-- public/management.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>14-T — Management</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .mgmt-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .mgmt-table th { background:var(--blue); color:#fff; padding:9px 10px; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; white-space:nowrap; }
+    .mgmt-table td { padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
+    .mgmt-table tr:hover td { background:#f0f4ff; }
+    .age-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; flex-shrink:0; }
+    .age-green  { background:#2a7a2a; }
+    .age-orange { background:#e6a000; }
+    .age-red    { background:#d94f00; }
+    .age-darkred{ background:#8b0000; }
+    .field-edit { width:100%; padding:5px 7px; border:1px solid var(--border); font-size:13px; font-family:inherit; background:var(--white); }
+    textarea.field-edit { min-height:60px; resize:vertical; }
+    .modal-overlay { position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.65);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto; }
+    .modal-box { background:var(--white);max-width:680px;width:100%;border-top:4px solid var(--blue);margin:auto; }
+    .modal-header { background:var(--blue);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center; }
+    .modal-body { padding:20px; }
+    .section-label { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);margin:18px 0 8px;border-bottom:1px solid var(--border);padding-bottom:4px; }
+    .field-row { display:grid;grid-template-columns:140px 1fr;gap:8px;align-items:start;margin-bottom:10px; }
+    .field-row label { font-size:12px;font-weight:600;color:var(--muted);padding-top:6px; }
+    .photo-thumb { width:100%;max-height:200px;object-fit:cover;border:1px solid var(--border);display:block;margin-bottom:6px; }
+    .btn-danger { background:var(--accent);color:#fff;border:none;padding:8px 16px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:600; }
+    .btn-save { background:var(--blue);color:#fff;border:none;padding:8px 18px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:600; }
+    .btn-secondary { background:var(--white);color:var(--blue);border:1px solid var(--blue);padding:8px 16px;font-size:13px;cursor:pointer;font-family:inherit; }
+    .search-bar { display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap; }
+    .search-bar input { flex:1;min-width:180px;padding:8px 10px;border:1px solid var(--border);font-size:13px;font-family:inherit; }
+    .search-bar select { padding:8px 10px;border:1px solid var(--border);font-size:13px;font-family:inherit; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="logo">14-T</div>
+      <div class="tagline">Home Citation System</div>
+    </div>
+    <nav>
+      <a href="index.html">New Ticket</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="management.html">Management</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Ticket Management</h1>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:20px;">Direct data access. Changes take effect immediately with no confirmation messages.</p>
+
+    <div class="search-bar">
+      <input type="text" id="search-input" placeholder="Search by name, ID, location, item…">
+      <select id="filter-status">
+        <option value="">All Statuses</option>
+        <option value="open">Open</option>
+        <option value="resolved">Resolved</option>
+        <option value="locked">Locked</option>
+      </select>
+      <select id="filter-age">
+        <option value="">All Ages</option>
+        <option value="fresh">Fresh (under 1 day)</option>
+        <option value="recent">Recent (1–9 days)</option>
+        <option value="aging">Aging (10–29 days)</option>
+        <option value="old">Old (30+ days)</option>
+      </select>
+    </div>
+
+    <div class="card" style="padding:0;overflow-x:auto;">
+      <table class="mgmt-table">
+        <thead>
+          <tr>
+            <th style="width:28px;"></th>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Age</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="mgmt-tbody">
+          <tr><td colspan="8" style="color:var(--muted);padding:16px;">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <div id="edit-modal" style="display:none;" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div>
+          <div style="font-size:11px;opacity:0.75;letter-spacing:1px;" id="modal-ticket-id"></div>
+          <div style="font-size:16px;font-weight:700;">Edit Ticket</div>
+        </div>
+        <button onclick="closeEditModal()" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:4px 10px;font-size:13px;cursor:pointer;">✕ Close</button>
+      </div>
+      <div class="modal-body">
+        <div id="edit-msg"></div>
+
+        <div class="section-label">Identity</div>
+        <div class="field-row"><label>First Name</label><input class="field-edit" id="e-person_first"></div>
+        <div class="field-row"><label>Last Initial</label><input class="field-edit" id="e-person_last_initial" maxlength="1" style="width:60px;"></div>
+        <div class="field-row"><label>Display Name</label><input class="field-edit" id="e-person_name"></div>
+        <div class="field-row"><label>Unknown?</label>
+          <select class="field-edit" id="e-is_unknown">
+            <option value="0">No — named person</option>
+            <option value="1">Yes — unknown</option>
+          </select>
+        </div>
+
+        <div class="section-label">Violation</div>
+        <div class="field-row"><label>Type</label>
+          <select class="field-edit" id="e-violation_type">
+            <option value="notice">Notice</option>
+            <option value="warning">Warning</option>
+            <option value="minor">Minor</option>
+            <option value="major">Major</option>
+            <option value="severe">Severe</option>
+          </select>
+        </div>
+        <div class="field-row"><label>Points</label><input class="field-edit" id="e-points" type="number" min="0" max="99" style="width:80px;"></div>
+        <div class="field-row"><label>Penal Code</label><input class="field-edit" id="e-penal_code" placeholder="e.g. 14T-106"></div>
+        <div class="field-row"><label>Location</label><input class="field-edit" id="e-location"></div>
+        <div class="field-row"><label>Description</label><textarea class="field-edit" id="e-description"></textarea></div>
+
+        <div class="section-label">Item Details</div>
+        <div class="field-row"><label>Item Name</label><input class="field-edit" id="e-item_name"></div>
+        <div class="field-row"><label>Product #</label><input class="field-edit" id="e-product_number"></div>
+        <div class="field-row"><label>Serial #</label><input class="field-edit" id="e-serial_number"></div>
+
+        <div class="section-label">Removal Notice</div>
+        <div class="field-row"><label>Has Removal Notice</label>
+          <select class="field-edit" id="e-removal_notice">
+            <option value="0">No</option>
+            <option value="1">Yes</option>
+          </select>
+        </div>
+        <div class="field-row"><label>Deadline</label><input class="field-edit" id="e-removal_deadline" placeholder="e.g. 24hr, immediately, or ISO datetime"></div>
+        <div class="field-row"><label>Removal Note</label><input class="field-edit" id="e-removal_note"></div>
+
+        <div class="section-label">Status & Dates</div>
+        <div class="field-row"><label>Status</label>
+          <select class="field-edit" id="e-status">
+            <option value="open">Open</option>
+            <option value="resolved">Resolved</option>
+            <option value="locked">Locked</option>
+          </select>
+        </div>
+        <div class="field-row"><label>Created At</label><input class="field-edit" id="e-created_at" placeholder="ISO 8601 datetime"></div>
+
+        <div class="section-label">Primary Photo</div>
+        <img id="e-photo-preview" class="photo-thumb" style="display:none;">
+        <div style="margin-bottom:10px;">
+          <input type="file" id="e-photo-file" accept="image/*" style="margin-bottom:6px;">
+          <div style="font-size:11px;color:var(--muted);">Upload a new photo to replace the existing one. Leave blank to keep current.</div>
+        </div>
+
+        <div class="section-label">Extra Photos</div>
+        <div id="e-extra-photos-list" style="margin-bottom:8px;"></div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:16px;">Click a photo to mark it for deletion. Changes apply on save.</div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--border);">
+          <button class="btn-save" onclick="saveTicket()">Save Changes</button>
+          <button class="btn-secondary" onclick="reopenTicket()">Reopen Ticket</button>
+          <button class="btn-danger" onclick="deleteTicket()" style="margin-left:auto;">Delete Ticket</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>14-T Home Citation System</footer>
+  <script src="penal-codes.js"></script>
+  <script src="management.js"></script>
+</body>
+</html>
