@@ -966,13 +966,13 @@ function renderFullTicket(container, t, isIssuerView) {
           if (gone) {
             removalContent += `
               <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;font-weight:600;color:var(--success);">
-                Item is gone — ticket closed.
+                Removal verified — item has been cleared from the area.
                 ${verifyNote ? `<div style="font-size:12px;font-weight:400;color:var(--muted);margin-top:4px;">${verifyNote}</div>` : ''}
               </div>`;
           } else {
             removalContent += `
               <div style="margin-top:10px;background:#fde8e8;border:1px solid var(--accent);padding:10px;font-size:13px;font-weight:600;color:var(--accent);">
-                Item was still there.
+                Item remains in place. Points are on record.
                 ${verifyNote ? `<div style="font-size:12px;font-weight:400;color:var(--text);margin-top:4px;">${verifyNote}</div>` : ''}
               </div>`;
           }
