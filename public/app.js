@@ -877,7 +877,85 @@ function renderFullTicket(container, t, isIssuerView) {
 
   const vtInfo = VIOLATION_TYPES[t.violation_type];
 
+  // ── ISSUER ACTION BANNERS (bypass view only, shown above ticket) ──────────
+  let issuerBanners = '';
+  if (isIssuerView) {
+
+    // ── APPEAL BANNER ──────────────────────────────────────────────────────
+    if (t.appeal_flagged) {
+      const declined = !!t.appeal_declined;
+      const hasResponse = !!t.appeal_response;
+      const locked = t.appeal_response_locked || t.status === 'locked';
+
+      let bannerColor = declined ? '#b54000' : '#a07000';
+      let bannerBg = declined ? '#fde8e8' : '#fff8e6';
+      let bannerBorder = declined ? 'var(--accent)' : '#e6a000';
+      let bannerLabel = declined ? 'APPEAL — DECLINED' : hasResponse ? 'APPEAL — AWAITING REPLY' : 'APPEAL — PENDING REVIEW';
+
+      issuerBanners += `
+        <div style="border:2px solid ${bannerBorder};background:${bannerBg};margin-bottom:16px;">
+
+          <!-- Bar header -->
+          <div style="background:${bannerBorder};padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#fff;">${bannerLabel}</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              ${!declined && !locked ? `
+                <button onclick="bannerAcceptAppeal('${t.id}')" style="background:#2a7a2a;color:#fff;padding:5px 14px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">Accept</button>
+                <button onclick="declineAppeal('${t.id}')" style="background:#b54000;color:#fff;padding:5px 14px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">Decline</button>` : ''}
+              ${declined ? `<button onclick="reopenAppeal('${t.id}')" style="background:#555;color:#fff;padding:5px 14px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">Reopen</button>` : ''}
+            </div>
+          </div>
+
+          <!-- Appeal content -->
+          <div style="padding:14px 16px;">
+            <div style="font-size:13px;margin-bottom:${t.appeal_photo_base64 ? '8px' : '0'};">${t.appeal_note || '—'}</div>
+            ${t.appeal_photo_base64 ? `<img src="${t.appeal_photo_base64}" style="max-width:100%;max-height:180px;object-fit:cover;border:1px solid var(--border);display:block;margin-bottom:8px;">` : ''}
+
+            ${hasResponse ? `
+              <div style="border-top:1px solid ${bannerBorder};padding-top:10px;margin-top:10px;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:4px;">Your Response</div>
+                <div style="font-size:13px;">${t.appeal_response}</div>
+              </div>` : ''}
+
+            ${!declined && !locked ? `
+              <div style="border-top:1px solid ${bannerBorder};padding-top:12px;margin-top:12px;">
+                <div id="banner-appeal-msg"></div>
+                <textarea id="banner-respond-text" placeholder="Write a reply (optional — you can accept or decline without responding)..." style="width:100%;min-height:64px;padding:8px 10px;border:1px solid ${bannerBorder};font-size:13px;font-family:inherit;box-sizing:border-box;margin-bottom:8px;background:#fff;resize:vertical;"></textarea>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button onclick="bannerRespondAppeal('${t.id}', false)" style="background:var(--blue);color:#fff;padding:6px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;font-weight:600;">Send Response</button>
+                  <button onclick="bannerRespondAppeal('${t.id}', true)" style="background:#555;color:#fff;padding:6px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;">Send &amp; Lock</button>
+                </div>
+              </div>` : ''}
+          </div>
+        </div>`;
+    }
+
+    // ── REMOVAL VERIFICATION BANNER ────────────────────────────────────────
+    if (t.item_removed_at && t.status !== 'resolved' && !t.issuer_removed_at) {
+      issuerBanners += `
+        <div style="border:2px solid var(--success);background:#e8f5e8;margin-bottom:16px;">
+          <div style="background:var(--success);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#fff;">REMOVAL — PENDING VERIFICATION</div>
+            <div style="display:flex;gap:6px;">
+              <button onclick="verifyItemRemoved('${t.id}', true)" style="background:#fff;color:var(--success);padding:5px 14px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">Item is Gone</button>
+              <button onclick="verifyItemRemoved('${t.id}', false)" style="background:var(--accent);color:#fff;padding:5px 14px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">Still There</button>
+            </div>
+          </div>
+          <div style="padding:14px 16px;">
+            <div style="font-size:13px;margin-bottom:10px;">Reported removed on <strong>${new Date(t.item_removed_at).toLocaleString()}</strong>. Verify and record the outcome.</div>
+            <div class="field-group" style="margin-bottom:0;">
+              <label for="ir-verify-note" style="font-size:12px;font-weight:600;">Note <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+              <input type="text" id="ir-verify-note" placeholder="e.g. Area was clean, Left trash behind..." style="margin-bottom:0;">
+            </div>
+          </div>
+        </div>`;
+    }
+  }
+
   container.innerHTML = `
+    ${issuerBanners}
     <div class="ticket-header">
       <div class="ticket-id">${t.id}</div>
       <div class="ticket-name">${displayName}</div>
@@ -1934,6 +2012,29 @@ async function reopenAppeal(id) {
   const data = await res.json();
   if (data.success) { document.getElementById('appeal-modal')?.remove(); location.reload(); }
   else alert(data.error || 'Failed to reopen.');
+}
+
+async function bannerAcceptAppeal(id) {
+  const hasRemoval = _currentTicket && _currentTicket.removal_notice && !_currentTicket.issuer_removed_at;
+  if (hasRemoval) {
+    // If removal notice is active, ask whether to keep it open
+    const keepOpen = confirm('Removal notice is still active. Keep the removal notice open after accepting?\n\nOK = Keep removal notice open (fine removed, deadline stands)\nCancel = Close everything');
+    await acceptAppeal(id, keepOpen);
+  } else {
+    await acceptAppeal(id, false);
+  }
+}
+
+async function bannerRespondAppeal(id, lock) {
+  const text = document.getElementById('banner-respond-text')?.value.trim();
+  const msgEl = document.getElementById('banner-appeal-msg');
+  if (!text) {
+    msgEl.className = 'msg error'; msgEl.textContent = 'Write a response before sending.'; msgEl.style.display = 'block';
+    return;
+  }
+  const result = await API.respondToAppeal(id, text, lock, null);
+  if (result.success) location.reload();
+  else { msgEl.className = 'msg error'; msgEl.textContent = result.error || 'Failed.'; msgEl.style.display = 'block'; }
 }
 
 async function acceptAppeal(id, keepRemovalOpen) {
