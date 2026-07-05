@@ -55,6 +55,7 @@ const PENAL_CODES = [
 
   // § 100-B — Test
   { code: '14T-101-B', label: 'Test', desc: 'This is a test; this used penal code picker.', category: 'test' },
+  { code: '14T-102-B', label: 'Test 2', desc: 'This is a test and is for testing purposes.', category: 'test' },
 ];
 
 const CATEGORY_LABELS = {
