@@ -966,14 +966,14 @@ function renderFullTicket(container, t, isIssuerView) {
           if (gone) {
             removalContent += `
               <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;font-weight:600;color:var(--success);">
-                Removal verified — item has been cleared from the area.
-                ${verifyNote ? `<div style="font-size:12px;font-weight:400;color:var(--muted);margin-top:4px;">${verifyNote}</div>` : ''}
+                Removal confirmed. This item has been cleared from the area and the citation has been closed. No further action is required.
+                ${verifyNote ? `<div style="font-size:12px;font-weight:400;color:var(--muted);margin-top:6px;">${verifyNote}</div>` : ''}
               </div>`;
           } else {
             removalContent += `
               <div style="margin-top:10px;background:#fde8e8;border:1px solid var(--accent);padding:10px;font-size:13px;font-weight:600;color:var(--accent);">
-                Item remains in place. Points are on record.
-                ${verifyNote ? `<div style="font-size:12px;font-weight:400;color:var(--text);margin-top:4px;">${verifyNote}</div>` : ''}
+                Verification failed — the item was found to still be present at the reported location. This citation remains active and points are on record. Further action may be taken if the item is not removed.
+                ${verifyNote ? `<div style="font-size:12px;font-weight:400;color:var(--text);margin-top:6px;">${verifyNote}</div>` : ''}
               </div>`;
           }
 
