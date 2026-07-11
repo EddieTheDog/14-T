@@ -1,0 +1,170 @@
+<!-- public/report.html -->
+<!-- 14-T Report an Abandoned Item -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>14-T — Report an Item</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div>
+      <div class="logo">14-T</div>
+      <div class="tagline">Home Citation System</div>
+    </div>
+  </header>
+
+  <main>
+    <h1>Report an Abandoned Item</h1>
+    <p style="margin-bottom:20px;color:var(--muted);font-size:14px;">See something left out or abandoned? Submit a report and we'll look into it. You'll be able to check the status of your report after submitting.</p>
+
+    <div id="report-msg" class="msg" style="display:none;"></div>
+
+    <form id="report-form">
+      <div class="card">
+        <h2>Your Name</h2>
+        <div class="row">
+          <div class="field-group">
+            <label for="reporter_first">First Name <span class="req">*</span></label>
+            <input type="text" id="reporter_first" autocomplete="given-name" required placeholder="First name">
+          </div>
+          <div class="field-group">
+            <label for="reporter_last_initial">Last Initial <span class="req">*</span></label>
+            <input type="text" id="reporter_last_initial" maxlength="1" placeholder="e.g. S" style="text-transform:uppercase;width:80px;" required>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>What Did You See?</h2>
+        <div class="field-group">
+          <label for="report_location">Location <span class="req">*</span></label>
+          <input type="text" id="report_location" required placeholder="e.g. Hallway, Kitchen counter, Driveway">
+        </div>
+        <div class="field-group">
+          <label for="report_item">Item Description <span class="req">*</span></label>
+          <input type="text" id="report_item" required placeholder="e.g. Red backpack, Box of clothes, Bicycle">
+        </div>
+        <div class="field-group">
+          <label for="report_description">What's the situation? <span class="req">*</span></label>
+          <textarea id="report_description" required placeholder="Describe what you saw — how long has it been there, is it blocking anything, etc." style="min-height:90px;" maxlength="500"></textarea>
+          <div style="font-size:11px;color:var(--muted);text-align:right;margin-top:-12px;margin-bottom:8px;"><span id="desc-count">500</span> characters remaining</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Who Does It Belong To? <span style="font-weight:400;font-size:13px;color:var(--muted)">(optional)</span></h2>
+        <div class="field-group">
+          <label for="report_owner">Name or description of who you think owns it</label>
+          <input type="text" id="report_owner" placeholder="e.g. John, The person in room 2, Unknown">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Photo <span style="font-weight:400;font-size:13px;color:var(--muted)">(optional but helpful)</span></h2>
+        <div class="field-group">
+          <input type="file" id="report_photo" accept="image/*" capture="environment">
+          <div id="report-photo-preview" style="margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <button type="submit">Submit Report</button>
+    </form>
+
+    <div id="report-success" style="display:none;">
+      <div class="card" style="text-align:center;padding:30px;">
+        <div style="font-size:32px;margin-bottom:12px;">✓</div>
+        <h2 style="margin-bottom:8px;">Report Submitted</h2>
+        <p style="color:var(--muted);margin-bottom:20px;">Your report has been received and will be reviewed soon.</p>
+        <div style="background:var(--bg);border:1px solid var(--border);padding:12px;margin-bottom:20px;font-size:13px;">
+          <div style="color:var(--muted);margin-bottom:4px;">Report ID — save this to check your status</div>
+          <div id="success-id" style="font-size:18px;font-weight:700;font-family:monospace;color:var(--blue);"></div>
+        </div>
+        <a id="status-link" href="#" style="display:inline-block;background:var(--blue);color:#fff;padding:10px 20px;text-decoration:none;font-weight:600;font-size:14px;">View Report Status</a>
+      </div>
+    </div>
+  </main>
+
+  <footer>14-T Home Citation System</footer>
+  <script>
+    // Character counter
+    document.getElementById('report_description').addEventListener('input', function() {
+      document.getElementById('desc-count').textContent = 500 - this.value.length;
+    });
+
+    // Photo preview
+    document.getElementById('report_photo').addEventListener('change', function() {
+      const file = this.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        document.getElementById('report-photo-preview').innerHTML =
+          `<img src="${e.target.result}" style="width:100%;max-height:200px;object-fit:cover;border:1px solid var(--border);">`;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    async function compressPhoto(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let w = img.width, h = img.height;
+            if (w > 1000) { h = Math.round(h * 1000 / w); w = 1000; }
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', 0.7));
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    document.getElementById('report-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const msgEl = document.getElementById('report-msg');
+      msgEl.style.display = 'none';
+
+      const first = document.getElementById('reporter_first').value.trim();
+      const initial = document.getElementById('reporter_last_initial').value.trim().toUpperCase();
+      const location = document.getElementById('report_location').value.trim();
+      const item = document.getElementById('report_item').value.trim();
+      const description = document.getElementById('report_description').value.trim();
+      const owner = document.getElementById('report_owner').value.trim() || null;
+      const photoFile = document.getElementById('report_photo').files[0];
+
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true; btn.textContent = 'Submitting...';
+
+      let photoBase64 = null;
+      if (photoFile) { try { photoBase64 = await compressPhoto(photoFile); } catch {} }
+
+      const id = 'RPT-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,5).toUpperCase();
+
+      const res = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, reporter_first: first, reporter_last_initial: initial, location, item, description, owner, photo_base64: photoBase64, created_at: new Date().toISOString() })
+      });
+      const result = await res.json();
+
+      if (result.success) {
+        document.getElementById('report-form').style.display = 'none';
+        document.getElementById('report-success').style.display = 'block';
+        document.getElementById('success-id').textContent = id;
+        document.getElementById('status-link').href = `report-status.html?id=${id}`;
+      } else {
+        msgEl.className = 'msg error'; msgEl.textContent = result.error || 'Failed to submit. Try again.'; msgEl.style.display = 'block';
+        btn.disabled = false; btn.textContent = 'Submit Report';
+      }
+    });
+  </script>
+</body>
+</html>
