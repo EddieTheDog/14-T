@@ -172,6 +172,41 @@ async function lookupBarcode(barcode) {
 if (document.getElementById('new-ticket-form')) {
   const form = document.getElementById('new-ticket-form');
   const msgEl = document.getElementById('form-msg');
+
+  // ── Pre-fill from report ─────────────────────────────────────────────────
+  const fromReport = new URLSearchParams(window.location.search).get('from_report');
+  const prefill = fromReport ? (() => { try { return JSON.parse(sessionStorage.getItem('prefill_report')); } catch { return null; } })() : null;
+  if (prefill) {
+    // Show a banner at top
+    const banner = document.createElement('div');
+    banner.style.cssText = 'background:#fff8e6;border:2px solid #e6a000;padding:12px 16px;margin-bottom:16px;font-size:13px;';
+    banner.innerHTML = `<strong style="color:#a07000;">Pre-filled from Report ${prefill.id}</strong> — by ${prefill.reporter_first} ${prefill.reporter_last_initial}. &nbsp;<a href="reports.html" style="color:var(--blue);font-size:12px;">Back to Reports</a>`;
+    document.querySelector('main h1')?.insertAdjacentElement('afterend', banner);
+
+    // Fill fields
+    setTimeout(() => {
+      const locationPreset = document.getElementById('location_preset');
+      const locationInput = document.getElementById('location');
+      const locationOtherWrap = document.getElementById('location-other-wrap');
+      if (locationPreset && locationInput) {
+        locationPreset.value = '__other__';
+        locationOtherWrap.style.display = 'block';
+        locationInput.value = prefill.location || '';
+        locationInput.required = true;
+      }
+      const itemEl = document.getElementById('item_name');
+      if (itemEl) itemEl.value = prefill.item || '';
+      const descEl = document.getElementById('description');
+      if (descEl) { descEl.value = prefill.description || ''; descEl.dataset.autofilled = '0'; }
+      // Select abandonment penal code by default
+      const penalEl = document.getElementById('penal_code');
+      if (penalEl) { penalEl.value = '14T-101'; penalEl.dispatchEvent(new Event('change')); }
+    }, 100);
+
+    sessionStorage.removeItem('prefill_report');
+    // Mark report as ticket created when ticket is submitted
+    form.dataset.fromReportId = fromReport;
+  }
   const violationSelect = document.getElementById('violation_type');
   const pointsDisplay = document.getElementById('points-display');
   const scanBtn = document.getElementById('scan-btn');
@@ -534,6 +569,11 @@ if (document.getElementById('new-ticket-form')) {
       const result = await API.createTicket(payload);
       if (result.success) {
         sessionStorage.setItem('last_ticket', JSON.stringify({ ...payload, photo_base64: photoBase64 }));
+        // If issued from a report, mark it as ticket created
+        if (form.dataset.fromReportId) {
+          fetch('/api/report-action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: form.dataset.fromReportId, action: 'ticket_created' }) });
+        }
         window.location.href = `print.html?id=${payload.id}`;
       } else {
         showMsg(msgEl, result.error || 'Failed to create ticket.', 'error');
