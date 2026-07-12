@@ -572,7 +572,7 @@ if (document.getElementById('new-ticket-form')) {
         // If issued from a report, mark it as ticket created
         if (form.dataset.fromReportId) {
           fetch('/api/report-action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: form.dataset.fromReportId, action: 'ticket_created' }) });
+            body: JSON.stringify({ id: form.dataset.fromReportId, action: 'ticket_created', ticket_id: payload.id }) });
         }
         window.location.href = `print.html?id=${payload.id}`;
       } else {
