@@ -18,7 +18,6 @@
       <a href="index.html">New Ticket</a>
       <a href="dashboard.html">Dashboard</a>
       <a href="reports.html">Reports</a>
-      <a href="management.html">Management</a>
     </nav>
   </header>
 
@@ -48,9 +47,34 @@
         reviewed: { label: 'Reviewed', color: '#a07000', bg: '#fff8e6' },
         ticket_created: { label: 'Ticket Created', color: 'var(--success)', bg: '#e8f5e8' },
         declined: { label: 'Declined', color: 'var(--accent)', bg: '#fde8e8' },
+        accepted_silent: { label: 'Accepted', color: '#555', bg: '#eee' },
       };
       const s = map[status] || { label: status, color: 'var(--muted)', bg: 'var(--bg)' };
       return `<span style="background:${s.bg};color:${s.color};padding:3px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${s.label}</span>`;
+    }
+
+    async function acceptSilent(id) {
+      const res = await fetch('/api/report-action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'accept_silent' }) });
+      const data = await res.json();
+      if (data.success) location.reload();
+      else alert(data.error || 'Failed.');
+    }
+
+    async function linkTicket(id) {
+      const input = document.getElementById(`link-input-${id}`);
+      const msgEl = document.getElementById(`link-msg-${id}`);
+      const ticketId = input?.value.trim();
+      if (!ticketId) { if (msgEl) { msgEl.style.color = 'var(--accent)'; msgEl.textContent = 'Enter a ticket ID first.'; } return; }
+      const res = await fetch('/api/report-action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'link_ticket', ticket_id: ticketId }) });
+      const data = await res.json();
+      if (data.success) {
+        if (msgEl) { msgEl.style.color = 'var(--success)'; msgEl.textContent = `Linked to ${ticketId} successfully.`; }
+        setTimeout(() => location.reload(), 800);
+      } else {
+        if (msgEl) { msgEl.style.color = 'var(--accent)'; msgEl.textContent = data.error || 'Failed.'; }
+      }
     }
 
     function buildReportCard(r) {
@@ -76,17 +100,41 @@
 
           ${r.decline_reason ? `<div style="font-size:13px;color:var(--accent);margin-bottom:10px;"><strong>Decline reason:</strong> ${r.decline_reason}</div>` : ''}
 
-          <div id="actions-${r.id}" style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div id="actions-${r.id}">
             ${r.status === 'open' || r.status === 'reviewed' ? `
-              <button onclick="createTicket('${r.id}')" style="background:var(--blue);color:#fff;padding:8px 16px;font-size:13px;font-weight:600;border:none;cursor:pointer;font-family:inherit;">Issue Ticket from Report</button>
-              <button onclick="markReviewed('${r.id}')" style="background:#a07000;color:#fff;padding:8px 14px;font-size:13px;border:none;cursor:pointer;font-family:inherit;">${r.status === 'reviewed' ? 'Mark as Open' : 'Mark Reviewed'}</button>
-              <button onclick="openDeclineModal('${r.id}')" style="background:var(--accent);color:#fff;padding:8px 14px;font-size:13px;border:none;cursor:pointer;font-family:inherit;">Decline</button>
-              <button onclick="deleteReport('${r.id}')" style="background:#999;color:#fff;padding:8px 14px;font-size:13px;border:none;cursor:pointer;font-family:inherit;">Delete</button>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                <button onclick="createTicket('${r.id}')" style="background:var(--blue);color:#fff;padding:8px 16px;font-size:13px;font-weight:600;border:none;cursor:pointer;font-family:inherit;">Issue Ticket from Report</button>
+                <button onclick="acceptSilent('${r.id}')" style="background:#555;color:#fff;padding:8px 14px;font-size:13px;border:none;cursor:pointer;font-family:inherit;">Accept — No Notification</button>
+                <button onclick="markReviewed('${r.id}')" style="background:#a07000;color:#fff;padding:8px 14px;font-size:13px;border:none;cursor:pointer;font-family:inherit;">${r.status === 'reviewed' ? 'Mark as Open' : 'Mark Reviewed'}</button>
+                <button onclick="openDeclineModal('${r.id}')" style="background:var(--accent);color:#fff;padding:8px 14px;font-size:13px;border:none;cursor:pointer;font-family:inherit;">Decline</button>
+                <button onclick="deleteReport('${r.id}')" style="background:#bbb;color:#fff;padding:8px 14px;font-size:13px;border:none;cursor:pointer;font-family:inherit;">Delete</button>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <input type="text" id="link-input-${r.id}" placeholder="Paste ticket ID to link (e.g. 14T-XXX)" style="padding:7px 10px;border:1px solid var(--border);font-size:13px;font-family:inherit;flex:1;min-width:200px;">
+                <button onclick="linkTicket('${r.id}')" style="background:var(--success);color:#fff;padding:7px 14px;font-size:13px;border:none;cursor:pointer;font-family:inherit;">Link Ticket</button>
+              </div>
+              <div id="link-msg-${r.id}" style="font-size:12px;margin-top:6px;"></div>
             ` : r.status === 'declined' ? `
-              <button onclick="markReviewed('${r.id}')" style="background:var(--blue);color:#fff;padding:8px 14px;font-size:13px;border:none;cursor:pointer;font-family:inherit;">Reopen</button>
-              <button onclick="deleteReport('${r.id}')" style="background:#999;color:#fff;padding:8px 14px;font-size:13px;border:none;cursor:pointer;font-family:inherit;">Delete</button>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button onclick="markReviewed('${r.id}')" style="background:var(--blue);color:#fff;padding:8px 14px;font-size:13px;border:none;cursor:pointer;font-family:inherit;">Reopen</button>
+                <button onclick="deleteReport('${r.id}')" style="background:#bbb;color:#fff;padding:8px 14px;font-size:13px;border:none;cursor:pointer;font-family:inherit;">Delete</button>
+              </div>
+            ` : r.status === 'accepted_silent' ? `
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                <button onclick="markReviewed('${r.id}')" style="background:var(--blue);color:#fff;padding:8px 14px;font-size:13px;border:none;cursor:pointer;font-family:inherit;">Reopen</button>
+                <button onclick="deleteReport('${r.id}')" style="background:#bbb;color:#fff;padding:8px 14px;font-size:13px;border:none;cursor:pointer;font-family:inherit;">Delete</button>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <input type="text" id="link-input-${r.id}" placeholder="Link a ticket ID anyway..." style="padding:7px 10px;border:1px solid var(--border);font-size:13px;font-family:inherit;flex:1;min-width:200px;">
+                <button onclick="linkTicket('${r.id}')" style="background:var(--success);color:#fff;padding:7px 14px;font-size:13px;border:none;cursor:pointer;font-family:inherit;">Link Ticket</button>
+              </div>
+              <div id="link-msg-${r.id}" style="font-size:12px;margin-top:6px;"></div>
             ` : `
-              <a href="report-status.html?id=${r.id}" target="_blank" style="font-size:12px;color:var(--blue);">View Status Page</a>
+              <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                <a href="report-status.html?id=${r.id}" target="_blank" style="font-size:12px;color:var(--blue);">View Status Page</a>
+                ${r.linked_ticket_id ? `<a href="ticket.html?id=${r.linked_ticket_id}&bypass=1" target="_blank" style="font-size:12px;color:var(--blue);">View Linked Ticket (${r.linked_ticket_id})</a>` : ''}
+                <button onclick="deleteReport('${r.id}')" style="background:#bbb;color:#fff;padding:6px 12px;font-size:12px;border:none;cursor:pointer;font-family:inherit;">Delete</button>
+              </div>
             `}
           </div>
         </div>`;
