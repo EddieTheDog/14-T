@@ -33,6 +33,7 @@ const PENAL_CODES = [
   { code: '14T-110', label: 'Furniture Misplacement', desc: 'Furniture or large item moved and not returned to its designated location.', category: 'abandonment' },
   { code: '14T-111', label: 'Vehicle — Unauthorized Parking', desc: 'Bicycle, scooter, or vehicle left in an unauthorized or obstructive location.', category: 'abandonment' },
   { code: '14T-112', label: 'Repeat Abandonment Offense', desc: 'Second or subsequent abandonment violation by the same party within a 30-day period.', category: 'abandonment' },
+  { code: '14T-113', label: 'Electronic Device Charging Without Proper Supervision.', desc: 'One or more electronic device charging without proper supervision. Can cause a safety risk.', category: 'abandonment' },
 
   // § 200 — Cleanliness & Sanitation
   { code: '14T-200', label: 'Dish / Utensil Left Out', desc: 'Dirty dish, cup, or utensil left outside the kitchen or sink area.', category: 'cleanliness' },
@@ -79,6 +80,15 @@ const QUICK_PRESETS = [
     description: 'A box or package has been left on the counter for an unreasonable period and is occupying shared surface space.',
     removal_notice: true,
     removal_deadline: '24hr',
+  },
+  {
+    label: 'Electronic Device Charging Without Proper Supervision',
+    icon: '⚡️',
+    violation_type: 'warning',
+    penal_code: '14T-113',
+    description: 'One or more electronic device charging without proper supervision.',
+    removal_notice: false,
+    removal_deadline: null,
   },
   {
     label: 'Item Left on Floor',
