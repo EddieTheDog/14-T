@@ -40,9 +40,23 @@
   <main>
     <h1>Reports</h1>
 
-    <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchTab('queue')">Queue</button>
-      <button class="tab-btn" onclick="switchTab('all')">All Reports</button>
+    <div class="tab-bar" style="justify-content:space-between;">
+      <div style="display:flex;">
+        <button class="tab-btn active" onclick="switchTab('queue')">Queue</button>
+        <button class="tab-btn" onclick="switchTab('all')">All Reports</button>
+      </div>
+      <button onclick="toggleSearch()" id="search-icon-btn" title="Search reports" style="background:transparent;border:none;cursor:pointer;padding:8px 14px;font-size:20px;color:var(--blue);display:flex;align-items:center;">&#128269;</button>
+    </div>
+
+    <!-- SEARCH PANEL -->
+    <div id="search-panel" style="display:none;border:2px solid var(--blue);margin-bottom:20px;">
+      <div style="background:var(--blue);padding:12px 16px;display:flex;align-items:center;gap:10px;">
+        <input type="text" id="global-search-input" placeholder="Search reports by any word — item, location, reporter, description..." autofocus oninput="runGlobalSearch()" style="flex:1;padding:8px 12px;font-size:14px;border:none;font-family:inherit;outline:none;">
+        <button onclick="toggleSearch()" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:4px 10px;font-size:13px;cursor:pointer;">✕</button>
+      </div>
+      <div id="search-results" style="background:var(--white);max-height:60vh;overflow-y:auto;">
+        <div style="padding:16px;font-size:13px;color:var(--muted);text-align:center;">Start typing to search all reports...</div>
+      </div>
     </div>
 
     <!-- QUEUE TAB -->
@@ -348,6 +362,56 @@
     // Close modals on backdrop click
     document.getElementById('link-modal').addEventListener('click', e => { if (e.target.id === 'link-modal') closeLinkModal(); });
     document.getElementById('decline-modal').addEventListener('click', e => { if (e.target.id === 'decline-modal') closeDeclineModal(); });
+
+    // ── Search ────────────────────────────────────────────────────────────────
+    function toggleSearch() {
+      const panel = document.getElementById('search-panel');
+      const open = panel.style.display === 'none';
+      panel.style.display = open ? 'block' : 'none';
+      if (open) {
+        document.getElementById('global-search-input').focus();
+        document.getElementById('global-search-input').value = '';
+        document.getElementById('search-results').innerHTML = '<div style="padding:16px;font-size:13px;color:var(--muted);text-align:center;">Start typing to search all reports...</div>';
+      }
+    }
+
+    function runGlobalSearch() {
+      const q = document.getElementById('global-search-input').value.toLowerCase().trim();
+      const resultsEl = document.getElementById('search-results');
+      if (!q) {
+        resultsEl.innerHTML = '<div style="padding:16px;font-size:13px;color:var(--muted);text-align:center;">Start typing to search all reports...</div>';
+        return;
+      }
+      const matched = _allReports.filter(r =>
+        (r.item||'').toLowerCase().includes(q) ||
+        (r.location||'').toLowerCase().includes(q) ||
+        (r.description||'').toLowerCase().includes(q) ||
+        (r.reporter_first||'').toLowerCase().includes(q) ||
+        (r.reporter_last_initial||'').toLowerCase().includes(q) ||
+        (r.owner||'').toLowerCase().includes(q) ||
+        (r.id||'').toLowerCase().includes(q) ||
+        (r.linked_ticket_id||'').toLowerCase().includes(q)
+      );
+      if (!matched.length) {
+        resultsEl.innerHTML = '<div style="padding:16px;font-size:13px;color:var(--muted);text-align:center;">No reports match your search.</div>';
+        return;
+      }
+      resultsEl.innerHTML = matched.map(r => {
+        const s = STATUS_LABELS[r.status] || { label: r.status, color: 'var(--muted)', bg: 'var(--bg)' };
+        return `<div style="padding:12px 16px;border-bottom:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:11px;color:var(--muted);font-family:monospace;">${r.id}</div>
+              <div style="font-size:14px;font-weight:700;">${r.item}</div>
+              <div style="font-size:12px;color:var(--muted);">${r.location} · ${r.reporter_first} ${r.reporter_last_initial}. · ${new Date(r.created_at).toLocaleDateString()}</div>
+            </div>
+            <span style="background:${s.bg};color:${s.color};padding:3px 10px;font-size:11px;font-weight:700;text-transform:uppercase;flex-shrink:0;">${s.label}</span>
+          </div>
+          <div style="font-size:13px;color:var(--muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.description}</div>
+          ${r.linked_ticket_id ? `<div style="font-size:12px;margin-top:4px;"><a href="ticket.html?id=${r.linked_ticket_id}&bypass=1" target="_blank" style="color:var(--blue);">Linked: ${r.linked_ticket_id}</a></div>` : ''}
+        </div>`;
+      }).join('');
+    }
 
     // ── Load ──────────────────────────────────────────────────────────────────
     async function loadReports() {
