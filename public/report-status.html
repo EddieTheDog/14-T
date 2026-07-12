@@ -45,13 +45,18 @@
           const steps = [
             { key: 'open',     label: 'Submitted',      desc: 'Your report has been received.' },
             { key: 'reviewed', label: 'Under Review',   desc: 'Your report is being looked into.' },
-            { key: 'closed',   label: r.status === 'ticket_created' ? 'Ticket Created' : r.status === 'declined' ? 'Declined' : 'Closed', desc:
-                r.status === 'ticket_created' ? 'A citation has been issued based on your report. Thank you.' :
-                r.status === 'declined' ? `Report was not actioned.${r.decline_reason ? ' Reason: ' + r.decline_reason : ''}` :
+            { key: 'closed',   label:
+                r.status === 'ticket_created' ? 'Ticket Issued' :
+                r.status === 'declined' ? 'Not Actioned' :
+                r.status === 'accepted_silent' ? 'Unknown Status' : 'Closed',
+              desc:
+                r.status === 'ticket_created' ? 'A citation has been issued based on your report. Thank you for letting us know.' :
+                r.status === 'declined' ? `This report was reviewed but no action was taken.${r.decline_reason ? ' Reason: ' + r.decline_reason : ''}` :
+                r.status === 'accepted_silent' ? 'This report has been reviewed. No further information is available at this time.' :
                 'This report has been closed.' }
           ];
 
-          const stepOrder = { open: 0, reviewed: 1, ticket_created: 2, declined: 2 };
+          const stepOrder = { open: 0, reviewed: 1, ticket_created: 2, declined: 2, accepted_silent: 2 };
           const currentStep = stepOrder[r.status] ?? 0;
 
           const stepsHtml = steps.map((s, i) => {
@@ -70,6 +75,25 @@
               </div>`;
           }).join('');
 
+          // If ticket is linked, fetch and show ticket info
+          const ticketInfoHtml = r.linked_ticket_id ? await fetch(`/api/tickets?id=${r.linked_ticket_id}`)
+            .then(res => res.json())
+            .then(td => {
+              const t = td.ticket;
+              if (!t) return '';
+              const vtLabels = { notice: 'Notice', warning: 'Warning', minor: 'Minor', major: 'Major', severe: 'Severe' };
+              return `
+                <div class="card" style="margin-top:16px;border-top:3px solid var(--blue);">
+                  <h2 style="margin-bottom:12px;">Citation Details</h2>
+                  <div class="info-row"><span class="label">Ticket ID</span><span style="font-family:monospace;">${t.id}</span></div>
+                  <div class="info-row"><span class="label">Violation Type</span><span>${vtLabels[t.violation_type] || t.violation_type}</span></div>
+                  <div class="info-row"><span class="label">Points</span><span>${t.points} pt${t.points !== 1 ? 's' : ''}</span></div>
+                  ${t.penal_code ? `<div class="info-row"><span class="label">Penal Code</span><span>${t.penal_code}</span></div>` : ''}
+                  ${t.location ? `<div class="info-row"><span class="label">Location</span><span>${t.location}</span></div>` : ''}
+                </div>`;
+            })
+            .catch(() => '') : '';
+
           container.innerHTML = `
             <h1 style="margin-bottom:4px;">Report Status</h1>
             <div style="font-size:13px;color:var(--muted);font-family:monospace;margin-bottom:20px;">${r.id}</div>
@@ -87,7 +111,8 @@
               ${r.owner ? `<div class="info-row"><span class="label">Possible Owner</span><span>${r.owner}</span></div>` : ''}
               <div style="margin-top:12px;background:var(--bg);padding:10px;font-size:13px;border-left:3px solid var(--border);">${r.description}</div>
               ${r.photo_base64 ? `<img src="${r.photo_base64}" style="width:100%;max-height:260px;object-fit:cover;border:1px solid var(--border);margin-top:12px;">` : ''}
-            </div>`;
+            </div>
+            ${ticketInfoHtml}`;
         })
         .catch(() => {
           container.innerHTML = '<div class="msg error" style="display:block;">Failed to load report.</div>';
