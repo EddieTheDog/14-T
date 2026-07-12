@@ -33,7 +33,7 @@
     } else {
       fetch(`/api/reports?id=${id}`)
         .then(r => r.json())
-        .then(data => {
+        .then(async data => {
           if (!data || data.error || !data.report) {
             container.innerHTML = '<div class="msg error" style="display:block;">Report not found.</div>';
             return;
