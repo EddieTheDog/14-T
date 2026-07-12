@@ -21,6 +21,7 @@ const PENAL_CODES = [
   // § 100 — Abandonment & Unauthorized Occupation
   { code: '14T-100', label: 'Unauthorized Occupation of Common Area', desc: 'Item occupying shared space without authorization or prior arrangement.', category: 'abandonment' },
   { code: '14T-101', label: 'Abandoned Item — Extended Period', desc: 'Item left unattended in a shared or common area for an unreasonable length of time.', category: 'abandonment' },
+  { code: '14T-101-B', label: 'Abandoned Item — Extended Period - Unauthorized Use of Property ', desc: 'Item left unattended in a shared or common area for an unreasonable length of time.', category: 'abandonment' },
   { code: '14T-102', label: 'Overnight Abandonment', desc: 'Item left out or unattended overnight without prior arrangement or justification.', category: 'abandonment' },
   { code: '14T-103', label: 'Multi-Day Abandonment', desc: 'Item left unattended for more than 24 hours in a non-designated area.', category: 'abandonment' },
   { code: '14T-104', label: 'Extended Abandonment (72+ hrs)', desc: 'Item has remained unattended and unaddressed for 72 hours or more.', category: 'abandonment' },
