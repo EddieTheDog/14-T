@@ -8,6 +8,7 @@ export async function onRequest(context) {
     'Access-Control-Allow-Origin': '*'
   };
   if (method === 'OPTIONS') return new Response(null, { headers });
+
   if (method === 'POST') {
     try {
       const body = await request.json();
@@ -15,14 +16,16 @@ export async function onRequest(context) {
         id, person_first, person_last_initial, person_name,
         is_unknown, violation_type, points, location, penal_code, description,
         item_name, product_number, serial_number, photo_base64, extra_photos,
-        removal_notice, removal_deadline, removal_note, created_at
+        removal_notice, removal_deadline, removal_note, linked_report_id, created_at
       } = body;
+
       if (!id || !person_name || !violation_type || !location || !photo_base64) {
         return new Response(JSON.stringify({ error: 'Missing required fields.' }), { status: 400, headers });
       }
+
       await env.DB.prepare(
-        `INSERT INTO tickets (id, person_first, person_last_initial, person_name, is_unknown, violation_type, points, location, penal_code, description, item_name, product_number, serial_number, photo_base64, extra_photos, removal_notice, removal_deadline, removal_note, status, appeal_flagged, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', 0, ?)`
+        `INSERT INTO tickets (id, person_first, person_last_initial, person_name, is_unknown, violation_type, points, location, penal_code, description, item_name, product_number, serial_number, photo_base64, extra_photos, removal_notice, removal_deadline, removal_note, linked_report_id, status, appeal_flagged, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', 0, ?)`
       ).bind(
         id, person_first || null, person_last_initial || null, person_name,
         is_unknown ? 1 : 0, violation_type, points, location,
@@ -30,8 +33,10 @@ export async function onRequest(context) {
         product_number || null, serial_number || null, photo_base64,
         extra_photos || null,
         removal_notice ? 1 : 0, removal_deadline || null, removal_note || null,
+        linked_report_id || null,
         created_at
       ).run();
+
       if (!is_unknown && person_name !== 'Unknown' && points > 0) {
         const existing = await env.DB.prepare(`SELECT * FROM people WHERE name = ?`).bind(person_name).first();
         if (existing) {
@@ -40,11 +45,13 @@ export async function onRequest(context) {
           await env.DB.prepare(`INSERT INTO people (name, total_points) VALUES (?, ?)`).bind(person_name, points).run();
         }
       }
+
       return new Response(JSON.stringify({ success: true, id }), { headers });
     } catch (err) {
       return new Response(JSON.stringify({ error: err.message }), { status: 500, headers });
     }
   }
+
   if (method === 'GET') {
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
@@ -66,5 +73,6 @@ export async function onRequest(context) {
       }
     }
   }
+
   return new Response(JSON.stringify({ error: 'Method not allowed.' }), { status: 405, headers });
 }
