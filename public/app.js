@@ -568,6 +568,7 @@ if (document.getElementById('new-ticket-form')) {
         removal_notice: hasRemoval ? 1 : 0,
         removal_deadline: removalDeadline,
         removal_note: removalNote,
+        linked_report_id: form.dataset.fromReportId || null,
         created_at: new Date().toISOString()
       };
 
@@ -876,6 +877,7 @@ function renderFullTicket(container, t, isIssuerView) {
   const addLog = (time, msg, color) => logEvents.push({ time: time ? new Date(time).getTime() : null, timeStr: time, msg, color });
 
   addLog(t.created_at, 'Ticket issued', 'var(--blue)');
+  if (t.linked_report_id) addLog(t.created_at, `Generated from report ${t.linked_report_id}`, 'var(--blue)');
 
   // Removal notice events — use attached_at if present, else created_at as proxy
   if (t.removal_attached_at) addLog(t.removal_attached_at, `Removal notice attached — ${formatDeadline(t.removal_deadline, t.created_at)}`, '#e6a000');
@@ -1019,8 +1021,19 @@ function renderFullTicket(container, t, isIssuerView) {
     }
   }
 
+  // ── LINKED REPORT BANNER ─────────────────────────────────────────────────
+  const reportBanner = t.linked_report_id ? `
+    <div style="background:var(--blue-light);border-left:4px solid var(--blue);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="font-size:13px;color:var(--blue-dark);">
+        <strong>Generated from a submitted report</strong>
+        <span style="font-size:11px;color:var(--muted);margin-left:8px;font-family:monospace;">${t.linked_report_id}</span>
+      </div>
+      ${isIssuerView ? `<a href="reports.html" style="font-size:12px;color:var(--blue);text-decoration:underline;">View Reports</a>` : ''}
+    </div>` : '';
+
   container.innerHTML = `
     ${issuerBanners}
+    ${reportBanner}
     <div class="ticket-header">
       <div class="ticket-id">${t.id}</div>
       <div class="ticket-name">${displayName}</div>
