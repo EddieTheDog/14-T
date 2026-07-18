@@ -48,6 +48,11 @@ const API = {
     const res = await fetch('/api/appeal-decline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
     return res.json();
   },
+  async extendRemoval(id, newDeadline, note, notify) {
+    const res = await fetch('/api/extend-removal', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, new_deadline: newDeadline, note: note || null, notify }) });
+    return res.json();
+  },
   async itemRemoved(id) {
     const res = await fetch('/api/item-removed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
     return res.json();
@@ -875,7 +880,7 @@ function renderFullTicket(container, t, isIssuerView) {
   // Removal notice events — use attached_at if present, else created_at as proxy
   if (t.removal_attached_at) addLog(t.removal_attached_at, `Removal notice attached — ${formatDeadline(t.removal_deadline, t.created_at)}`, '#e6a000');
   else if (t.removal_notice) addLog(t.created_at, `Removal notice — ${formatDeadline(t.removal_deadline, t.created_at)}`, '#e6a000');
-  if (t.removal_adjusted_at) addLog(t.removal_adjusted_at, `Removal notice adjusted — ${formatDeadline(t.removal_deadline, t.created_at)} — quality assurance`, '#e6a000');
+  if (t.removal_extended_at) addLog(t.removal_extended_at, `Removal deadline extended — ${formatDeadline(t.removal_deadline, t.created_at)}${t.removal_extension_notify ? ' (recipient notified)' : ' (silent)'}`, '#d97706');
   if (t.removal_removed_at) addLog(t.removal_removed_at, 'Removal notice removed — quality assurance', 'var(--muted)');
 
   // Issuer notes — include deleted ones in log with their deletedAt time
@@ -1065,6 +1070,17 @@ function renderFullTicket(container, t, isIssuerView) {
             Must be removed${t.removal_deadline ? ` — <strong>${formatDeadline(t.removal_deadline, t.created_at)}</strong>` : ''}.
           </div>
           ${t.removal_note ? `<div style="font-size:13px;color:var(--muted);margin-top:4px;">${t.removal_note}</div>` : ''}`;
+
+        // ── EXTENSION CALLOUT (shown when notify=true) ──────────────────────
+        if (t.removal_extended_at && t.removal_extension_notify) {
+          const extDate = new Date(t.removal_extended_at).toLocaleString();
+          removalContent += `
+            <div style="margin-top:10px;background:#fff0e0;border:1px solid #d97706;padding:10px 12px;">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#b45309;margin-bottom:4px;">Deadline Extended — ${extDate}</div>
+              <div style="font-size:13px;color:#92400e;">The removal deadline for this item has been extended. The new deadline is <strong>${formatDeadline(t.removal_deadline, t.created_at)}</strong>.</div>
+              ${t.removal_extension_note ? `<div style="font-size:12px;color:#78350f;margin-top:4px;">${t.removal_extension_note}</div>` : ''}
+            </div>`;
+        }
 
         // ── IMPOUNDED (issuer removed it) ──
         if (impounded) {
