@@ -867,6 +867,7 @@ function renderFullTicket(container, t, isIssuerView) {
         ${!t.removal_notice
           ? `<button class="secondary" style="padding:6px 12px;font-size:12px;" onclick="openAttachRemovalModal('${t.id}')">Attach Removal Notice</button>`
           : `<button class="secondary" style="padding:6px 12px;font-size:12px;" onclick="openAttachRemovalModal('${t.id}', true)">Edit Removal Notice</button>
+             <button class="secondary" style="padding:6px 12px;font-size:12px;border-color:#d97706;color:#d97706;" onclick="openExtendRemovalModal('${t.id}')">Extend Deadline</button>
              <button class="secondary" style="padding:6px 12px;font-size:12px;border-color:var(--accent);color:var(--accent);" onclick="removeRemovalNotice('${t.id}')">Remove Removal Notice</button>`}
       </div>
     </div>` : '';
@@ -1683,6 +1684,105 @@ async function removeRemovalNotice(id) {
   const result = await res.json();
   if (result.success) location.reload();
   else alert(result.error || 'Failed to remove notice.');
+}
+
+function openExtendRemovalModal(id) {
+  const existing = document.getElementById('extend-removal-modal');
+  if (existing) existing.remove();
+
+  const t = _ticketCache[id] || _currentTicket || {};
+  const currentDeadline = t.removal_deadline || '24hr';
+
+  const modal = document.createElement('div');
+  modal.id = 'extend-removal-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.innerHTML = `
+    <div style="background:var(--white);max-width:460px;width:100%;border-top:4px solid #d97706;">
+      <div style="background:#d97706;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:15px;font-weight:700;">Extend Removal Deadline</div>
+          <div style="font-size:12px;opacity:0.85;margin-top:2px;">Set a new deadline for this removal notice</div>
+        </div>
+        <button onclick="document.getElementById('extend-removal-modal').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:3px 9px;font-size:13px;cursor:pointer;">✕</button>
+      </div>
+      <div style="padding:18px;">
+        <div id="extend-msg"></div>
+
+        <div class="field-group">
+          <label for="extend-deadline">New Deadline <span class="req">*</span></label>
+          <select id="extend-deadline" onchange="document.getElementById('extend-custom-wrap').style.display=this.value==='custom'?'block':'none'">
+            <option value="immediately">Immediately</option>
+            <option value="24hr">Within 24 hours</option>
+            <option value="48hr">Within 48 hours</option>
+            <option value="72hr">Within 72 hours</option>
+            <option value="1week">Within 1 week</option>
+            <option value="custom">Custom date &amp; time</option>
+          </select>
+          <div id="extend-custom-wrap" style="display:none;margin-top:6px;">
+            <input type="datetime-local" id="extend-custom-dt" style="width:100%;padding:7px 10px;border:1px solid var(--border);font-size:13px;">
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label for="extend-note">Note <span class="opt">(optional)</span></label>
+          <input type="text" id="extend-note" placeholder="Reason for extension...">
+        </div>
+
+        <div style="background:var(--bg);border:1px solid var(--border);padding:12px;margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:700;margin-bottom:10px;">Notification</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-weight:400;margin-bottom:0;">
+              <input type="radio" name="extend-notify" value="silent" checked style="margin-top:3px;width:auto;">
+              <div>
+                <div style="font-size:13px;font-weight:600;">Silent — don't tell them</div>
+                <div style="font-size:12px;color:var(--muted);">The deadline updates but they see no indication it was changed.</div>
+              </div>
+            </label>
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-weight:400;margin-bottom:0;">
+              <input type="radio" name="extend-notify" value="notify" style="margin-top:3px;width:auto;">
+              <div>
+                <div style="font-size:13px;font-weight:600;">Notify — show them the extension</div>
+                <div style="font-size:12px;color:var(--muted);">An orange "Deadline Extended" callout appears on their ticket view.</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+          <button onclick="submitExtendRemoval('${id}')" style="padding:10px 18px;font-size:13px;background:#d97706;border:none;color:#fff;cursor:pointer;font-family:inherit;font-weight:600;">Save Extension</button>
+          <button class="secondary" onclick="document.getElementById('extend-removal-modal').remove()" style="padding:10px 16px;font-size:13px;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+async function submitExtendRemoval(id) {
+  const sel = document.getElementById('extend-deadline').value;
+  const deadline = sel === 'custom'
+    ? (document.getElementById('extend-custom-dt').value || null)
+    : sel;
+  const note = document.getElementById('extend-note').value.trim() || null;
+  const notify = document.querySelector('input[name="extend-notify"]:checked')?.value === 'notify';
+  const msgEl = document.getElementById('extend-msg');
+
+  if (!deadline) {
+    msgEl.className = 'msg error'; msgEl.textContent = 'Deadline is required.'; msgEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.querySelector('#extend-removal-modal button[onclick^="submitExtendRemoval"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+  const result = await API.extendRemoval(id, deadline, note, notify);
+  if (result.success) {
+    document.getElementById('extend-removal-modal').remove();
+    location.reload();
+  } else {
+    msgEl.className = 'msg error'; msgEl.textContent = result.error || 'Failed.'; msgEl.style.display = 'block';
+    if (btn) { btn.disabled = false; btn.textContent = 'Save Extension'; }
+  }
 }
 
 async function submitAppeal(id) {
