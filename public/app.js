@@ -1034,7 +1034,6 @@ function renderFullTicket(container, t, isIssuerView) {
 
   container.innerHTML = `
     ${issuerBanners}
-    ${reportBanner}
     <div class="ticket-header">
       <div class="ticket-id">${t.id}</div>
       <div class="ticket-name">${displayName}</div>
@@ -1168,6 +1167,7 @@ function renderFullTicket(container, t, isIssuerView) {
       ${issuerActionsHtml}
       ${statusMsg}
       ${appealSection}
+      ${reportBanner}
       ${logHtml}
     </div>
   `;
