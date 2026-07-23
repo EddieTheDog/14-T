@@ -52,10 +52,16 @@ const PENAL_CODES = [
   { code: '14T-402', label: 'Borrowed Item — Not Returned', desc: 'Item borrowed and not returned within the agreed or reasonable timeframe.', category: 'property' },
 
    // § 500 — Safety
-  { code: '14T-500', label: 'Item Not Safely Stored', desc: 'Item is not safely stored. Can cause a safety risk, cause damage(s), or hurt someone or something.', category: 'safety' },
-  { code: '14T-500-B', label: 'Items Not Safely Stored', desc: 'Items are not safely stored. Can cause a safety risk, cause damage(s), or hurt someone or something.', category: 'safety' },
-  { code: '14T-501', label: 'Causing Damage', desc: 'Item has or is causing damage.', category: 'safety' },
-  { code: '14T-501-B', label: 'Causing Damage', desc: 'Items have or are causing damage.', category: 'safety' },
+  { code: '14T-502', label: 'Trip Hazard', desc: 'Item is creating a trip hazard and should be removed or secured.', category: 'safety' },
+  { code: '14T-502-B', label: 'Trip Hazards', desc: 'Items are creating trip hazards and should be removed or secured.', category: 'safety' },
+  { code: '14T-503', label: 'Blocked Access', desc: 'Item is blocking a walkway, exit, entrance, or access point.', category: 'safety' },
+  { code: '14T-503-B', label: 'Blocked Access', desc: 'Items are blocking walkways, exits, entrances, or access points.', category: 'safety' },
+  { code: '14T-504', label: 'Unstable Item', desc: 'Item is unstable and may fall, tip over, or shift unexpectedly.', category: 'safety' },
+  { code: '14T-504-B', label: 'Unstable Items', desc: 'Items are unstable and may fall, tip over, or shift unexpectedly.', category: 'safety' },
+  { code: '14T-505', label: 'Sharp Object Exposed', desc: 'Item has an exposed sharp edge or point that may cause injury.', category: 'safety' },
+  { code: '14T-505-B', label: 'Sharp Objects Exposed', desc: 'Items have exposed sharp edges or points that may cause injury.', category: 'safety' },
+  { code: '14T-506', label: 'Unsafe Condition', desc: 'Item presents an unsafe condition that requires attention or corrective action.', category: 'safety' },
+  { code: '14T-506-B', label: 'Unsafe Conditions', desc: 'Items present unsafe conditions that require attention or corrective action.', category: 'safety' },
 
   // § 900 — Other
   { code: '14T-900', label: 'Other / Custom', desc: '', category: 'other' },
