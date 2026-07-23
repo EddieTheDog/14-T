@@ -1400,40 +1400,80 @@ function openIssuerRemoveModal(id) {
   const existing = document.getElementById('issuer-remove-modal');
   if (existing) existing.remove();
 
+  const t = _ticketCache[id] || _currentTicket || {};
+
   const modal = document.createElement('div');
   modal.id = 'issuer-remove-modal';
-  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;';
   modal.innerHTML = `
-    <div style="background:var(--white);max-width:480px;width:100%;border-top:4px solid #7b3f00;">
+    <div style="background:var(--white);max-width:500px;width:100%;border-top:4px solid #7b3f00;margin:auto;">
       <div style="background:#7b3f00;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;">
         <div>
-          <div style="font-size:15px;font-weight:700;">Mark Item as Removed</div>
-          <div style="font-size:12px;opacity:0.8;margin-top:2px;">Take a photo as proof and close the ticket</div>
+          <div style="font-size:15px;font-weight:700;">Impound Item</div>
+          <div style="font-size:12px;opacity:0.8;margin-top:2px;">Take a photo and log it to inventory</div>
         </div>
         <button onclick="document.getElementById('issuer-remove-modal').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:4px 10px;font-size:13px;cursor:pointer;">✕</button>
       </div>
       <div style="padding:18px;">
         <div id="ir-msg"></div>
+
         <div class="field-group">
-          <label for="ir-photo">Photo of Item Removed / Location <span class="req">*</span></label>
-          <input type="file" id="ir-photo" accept="image/*" capture="environment" required>
+          <label for="ir-photo">Evidence Photo <span class="req">*</span></label>
+          <input type="file" id="ir-photo" accept="image/*" capture="environment">
           <div id="ir-photo-preview" style="margin-top:6px;"></div>
         </div>
+
+        <div class="field-group">
+          <label for="ir-item">Item Name <span class="req">*</span></label>
+          <input type="text" id="ir-item" value="${t.item_name || ''}" placeholder="e.g. Red backpack, Bicycle">
+        </div>
+
+        <div class="field-group">
+          <label for="ir-serial">Serial / ID Number <span class="opt">(optional)</span></label>
+          <input type="text" id="ir-serial" value="${t.serial_number || ''}" placeholder="Serial number or barcode">
+        </div>
+
         <div class="field-group">
           <label for="ir-note">Note <span class="opt">(optional)</span></label>
-          <input type="text" id="ir-note" placeholder="e.g. Moved to garage, Left outside door">
+          <input type="text" id="ir-note" placeholder="e.g. Found in hallway, Item was wet">
         </div>
-        <div style="background:#fff3cd;border:1px solid #e6a000;padding:10px;font-size:12px;margin-bottom:14px;">
-          This will close the ticket. Points remain on record. The recipient will see that the item was relocated and will be shown the contact number to retrieve it.
+
+        <div style="border:1px solid var(--border);padding:14px;margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:12px;">Can the owner retrieve this item?</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-weight:400;margin-bottom:0;">
+              <input type="radio" name="ir-retrievable" value="yes" checked style="margin-top:3px;width:auto;">
+              <div>
+                <div style="font-size:13px;font-weight:600;">Yes — Owner can retrieve it</div>
+                <div style="font-size:12px;color:var(--muted);">Item will be held and they can request pickup.</div>
+              </div>
+            </label>
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-weight:400;margin-bottom:0;">
+              <input type="radio" name="ir-retrievable" value="no" style="margin-top:3px;width:auto;" onchange="document.getElementById('ir-disposal-wrap').style.display='block'">
+              <div>
+                <div style="font-size:13px;font-weight:600;">No — Will not be returned</div>
+                <div style="font-size:12px;color:var(--muted);">Choose what happens to the item.</div>
+              </div>
+            </label>
+          </div>
+          <div id="ir-disposal-wrap" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:6px;">Disposition</label>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              ${['Donated to charity','Sold','Discarded / thrown out','Given away','Other'].map(opt =>
+                `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;font-size:13px;margin-bottom:0;">
+                  <input type="radio" name="ir-disposal" value="${opt}" style="width:auto;"> ${opt}
+                </label>`).join('')}
+            </div>
+          </div>
         </div>
+
         <div style="display:flex;gap:10px;">
-          <button onclick="submitIssuerRemoved('${id}')" style="background:#7b3f00;color:#fff;padding:10px 18px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">Confirm & Close Ticket</button>
+          <button onclick="submitIssuerRemoved('${id}')" style="background:#7b3f00;color:#fff;padding:10px 18px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">Impound &amp; Close Ticket</button>
           <button class="secondary" onclick="document.getElementById('issuer-remove-modal').remove()" style="padding:10px 16px;font-size:13px;">Cancel</button>
         </div>
       </div>
     </div>`;
 
-  // Preview photo
   modal.querySelector('#ir-photo').addEventListener('change', function() {
     const file = this.files[0];
     if (file) {
@@ -1445,37 +1485,86 @@ function openIssuerRemoveModal(id) {
     }
   });
 
+  // Wire retrieval radio to show/hide disposal
+  modal.querySelectorAll('input[name="ir-retrievable"]').forEach(r => {
+    r.addEventListener('change', () => {
+      document.getElementById('ir-disposal-wrap').style.display =
+        document.querySelector('input[name="ir-retrievable"]:checked')?.value === 'no' ? 'block' : 'none';
+    });
+  });
+
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
   document.body.appendChild(modal);
 }
 
 async function submitIssuerRemoved(id) {
   const photoFile = document.getElementById('ir-photo').files[0];
+  const itemName = document.getElementById('ir-item').value.trim();
   const msgEl = document.getElementById('ir-msg');
-  if (!photoFile) {
-    msgEl.className = 'msg error'; msgEl.textContent = 'A photo is required.'; msgEl.style.display = 'block';
-    return;
-  }
+
+  if (!photoFile) { msgEl.className='msg error'; msgEl.textContent='A photo is required.'; msgEl.style.display='block'; return; }
+  if (!itemName) { msgEl.className='msg error'; msgEl.textContent='Item name is required.'; msgEl.style.display='block'; return; }
+
+  const retrievable = document.querySelector('input[name="ir-retrievable"]:checked')?.value === 'yes';
+  const disposalMethod = !retrievable ? (document.querySelector('input[name="ir-disposal"]:checked')?.value || null) : null;
+  if (!retrievable && !disposalMethod) { msgEl.className='msg error'; msgEl.textContent='Please select a disposition for the item.'; msgEl.style.display='block'; return; }
+
   const btn = document.querySelector('#issuer-remove-modal button[onclick^="submitIssuerRemoved"]');
-  if (btn) { btn.disabled = true; btn.textContent = 'Submitting...'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Processing...'; }
+
+  const serial = document.getElementById('ir-serial').value.trim() || null;
+  const note = document.getElementById('ir-note').value.trim() || null;
 
   let photoBase64 = null;
   try { photoBase64 = await compressImage(photoFile); } catch {}
 
-  const note = document.getElementById('ir-note').value.trim() || null;
-
-  const res = await fetch('/api/issuer-removed', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  // 1. Close the ticket (mark impounded)
+  const removeRes = await fetch('/api/issuer-removed', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id, photo_base64: photoBase64, note })
   });
-  const result = await res.json();
-  if (result.success) {
-    document.getElementById('issuer-remove-modal').remove();
-    location.reload();
+  const removeResult = await removeRes.json();
+  if (!removeResult.success) {
+    msgEl.className='msg error'; msgEl.textContent=removeResult.error||'Failed to close ticket.'; msgEl.style.display='block';
+    if (btn) { btn.disabled=false; btn.textContent='Impound & Close Ticket'; }
+    return;
+  }
+
+  // 2. Create impound record
+  const impoundRes = await fetch('/api/impounds', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'create',
+      ticket_id: id,
+      item_name: itemName,
+      serial_number: serial,
+      photo_base64: photoBase64,
+      retrievable,
+      disposal_method: disposalMethod,
+      notes: note
+    })
+  });
+  const impoundResult = await impoundRes.json();
+
+  document.getElementById('issuer-remove-modal').remove();
+
+  if (impoundResult.success) {
+    // Store for print page and redirect
+    sessionStorage.setItem('last_impound', JSON.stringify({
+      ...impoundResult,
+      ticket_id: id,
+      item_name: itemName,
+      serial_number: serial,
+      retrievable,
+      disposal_method: disposalMethod,
+      photo_base64: photoBase64,
+      created_at: new Date().toISOString()
+    }));
+    window.location.href = `impound-print.html?id=${impoundResult.id}`;
   } else {
-    msgEl.className = 'msg error'; msgEl.textContent = result.error || 'Failed.'; msgEl.style.display = 'block';
-    if (btn) { btn.disabled = false; btn.textContent = 'Confirm & Close Ticket'; }
+    // Ticket was closed but impound record failed — go to ticket
+    alert('Ticket closed but impound record failed: ' + (impoundResult.error || 'Unknown error'));
+    location.reload();
   }
 }
 
