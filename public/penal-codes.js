@@ -52,6 +52,10 @@ const PENAL_CODES = [
   { code: '14T-402', label: 'Borrowed Item — Not Returned', desc: 'Item borrowed and not returned within the agreed or reasonable timeframe.', category: 'property' },
 
    // § 500 — Safety
+  { code: '14T-500', label: 'Safety Hazard', desc: 'Item presents a safety hazard that may result in injury or property damage.', category: 'safety' },
+  { code: '14T-500-B', label: 'Safety Hazards', desc: 'Items present safety hazards that may result in injury or property damage.', category: 'safety' },
+  { code: '14T-501', label: 'Unsafe Storage', desc: 'Item is stored in an unsafe manner and should be properly secured or relocated.', category: 'safety' },
+  { code: '14T-501-B', label: 'Unsafe Storage', desc: 'Items are stored in an unsafe manner and should be properly secured or relocated.', category: 'safety' },
   { code: '14T-502', label: 'Trip Hazard', desc: 'Item is creating a trip hazard and should be removed or secured.', category: 'safety' },
   { code: '14T-502-B', label: 'Trip Hazards', desc: 'Items are creating trip hazards and should be removed or secured.', category: 'safety' },
   { code: '14T-503', label: 'Blocked Access', desc: 'Item is blocking a walkway, exit, entrance, or access point.', category: 'safety' },
