@@ -52,8 +52,10 @@ const PENAL_CODES = [
   { code: '14T-402', label: 'Borrowed Item — Not Returned', desc: 'Item borrowed and not returned within the agreed or reasonable timeframe.', category: 'property' },
 
    // § 500 — Safety
-  { code: '14T-500', label: 'Item not safely stored', desc: 'Item is not safely stored. Can cause a safety risk, cause damage(s), or hurt someone or something.', category: 'safety' },
-  { code: '14T-500-B', label: 'Items not safely stored', desc: 'Items are not safely stored. Can cause a safety risk, cause damage(s), or hurt someone or something.', category: 'safety' },
+  { code: '14T-500', label: 'Item Not Safely Stored', desc: 'Item is not safely stored. Can cause a safety risk, cause damage(s), or hurt someone or something.', category: 'safety' },
+  { code: '14T-500-B', label: 'Items Not Safely Stored', desc: 'Items are not safely stored. Can cause a safety risk, cause damage(s), or hurt someone or something.', category: 'safety' },
+  { code: '14T-501', label: 'Causing Damage', desc: 'Item has or is causing damage.', category: 'safety' },
+  { code: '14T-501-B', label: 'Causing Damage', desc: 'Items have or are causing damage.', category: 'safety' },
 
   // § 900 — Other
   { code: '14T-900', label: 'Other / Custom', desc: '', category: 'other' },
