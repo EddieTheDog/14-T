@@ -51,6 +51,10 @@ const PENAL_CODES = [
   { code: '14T-401', label: 'Property Damage', desc: 'Damage caused to shared or personal property through negligence or misuse.', category: 'property' },
   { code: '14T-402', label: 'Borrowed Item — Not Returned', desc: 'Item borrowed and not returned within the agreed or reasonable timeframe.', category: 'property' },
 
+   // § 500 — Safety
+  { code: '14T-500', label: 'Item not safely stored', desc: 'Item is not safely stored. Can cause a safety risk, cause damage(s), or hurt someone or something.', category: 'safety' },
+  { code: '14T-500-B', label: 'Items not safely stored', desc: 'Items are not safely stored. Can cause a safety risk, cause damage(s), or hurt someone or something.', category: 'safety' },
+
   // § 900 — Other
   { code: '14T-900', label: 'Other / Custom', desc: '', category: 'other' },
   { code: '14T-900-B', label: 'None Needed', desc: '', category: 'other' },
@@ -65,8 +69,9 @@ const CATEGORY_LABELS = {
   cleanliness: '§ 200 — Cleanliness & Sanitation',
   noise:       '§ 300 — Noise & Disturbance',
   property:    '§ 400 — Property',
+  safety:      '§ 500 — Safety',
   other:       '§ 900 — Other',
-  test:       '§ 100-b — Test'
+  test:        '§ 101-B — Test'
 };
 
 // ── QUICK-ISSUE PRESETS ───────────────────────────────────────────────────────
