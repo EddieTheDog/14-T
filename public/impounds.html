@@ -1,0 +1,317 @@
+<!-- public/impounds.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>14-T — Impound Inventory</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .imp-card { background:var(--white);border:1px solid var(--border);padding:16px;margin-bottom:10px; }
+    .status-badge { display:inline-block;padding:3px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px; }
+    .tab-bar { display:flex;gap:0;border-bottom:2px solid var(--blue);margin-bottom:20px; }
+    .tab-btn { padding:9px 20px;font-size:13px;font-weight:600;font-family:inherit;border:none;background:transparent;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px; }
+    .tab-btn.active { color:var(--blue);border-bottom-color:var(--blue);background:var(--blue-light); }
+  </style>
+</head>
+<body>
+  <header>
+    <div><div class="logo">14-T</div><div class="tagline">Home Citation System</div></div>
+    <nav>
+      <a href="index.html">New Ticket</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="impounds.html">Inventory</a>
+    </nav>
+  </header>
+
+  <main>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+      <h1 style="margin-bottom:0;">Impound Inventory</h1>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="text" id="scan-input" placeholder="Scan or type impound # ..." style="padding:7px 10px;border:1.5px solid var(--blue);font-size:13px;font-family:monospace;width:220px;" onkeydown="if(event.key==='Enter')scanSearch()">
+        <button onclick="scanSearch()" style="padding:7px 14px;font-size:13px;">Search</button>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('active')">Active</button>
+      <button class="tab-btn" onclick="switchTab('released')">Released</button>
+      <button class="tab-btn" onclick="switchTab('disposed')">Disposed</button>
+      <button class="tab-btn" onclick="switchTab('all')">All</button>
+    </div>
+
+    <div id="imp-list"><div class="msg" style="display:block;background:var(--blue-light);color:var(--blue-dark);padding:14px;">Loading...</div></div>
+  </main>
+
+  <!-- SET LOCATION MODAL -->
+  <div id="location-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:var(--white);max-width:400px;width:100%;border-top:4px solid var(--blue);">
+      <div style="background:var(--blue);color:#fff;padding:13px 18px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:14px;font-weight:700;">Set Storage Location</div>
+        <button onclick="closeModal('location-modal')" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:3px 8px;font-size:12px;cursor:pointer;">✕</button>
+      </div>
+      <div style="padding:16px;">
+        <div id="location-modal-msg"></div>
+        <div class="field-group">
+          <label for="location-input">Location</label>
+          <input type="text" id="location-input" placeholder="e.g. Garage shelf B, Closet box 3">
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="submitLocation()" style="padding:9px 16px;font-size:13px;">Save</button>
+          <button class="secondary" onclick="closeModal('location-modal')" style="padding:9px 14px;font-size:13px;">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCHEDULE MODAL -->
+  <div id="schedule-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:var(--white);max-width:420px;width:100%;border-top:4px solid var(--success);">
+      <div style="background:var(--success);color:#fff;padding:13px 18px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:14px;font-weight:700;">Schedule Pickup Window</div>
+        <button onclick="closeModal('schedule-modal')" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:3px 8px;font-size:12px;cursor:pointer;">✕</button>
+      </div>
+      <div style="padding:16px;">
+        <div id="schedule-modal-msg"></div>
+        <div class="field-group">
+          <label for="pickup-start">Pickup Start Time <span class="req">*</span></label>
+          <input type="datetime-local" id="pickup-start">
+        </div>
+        <div class="field-group">
+          <label for="pickup-window">Window Duration</label>
+          <select id="pickup-window">
+            <option value="1">1 hour (default)</option>
+            <option value="2">2 hours</option>
+            <option value="0.5">30 minutes</option>
+            <option value="3">3 hours</option>
+          </select>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">The recipient will see the pickup window on their ticket page.</div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="submitSchedule()" style="padding:9px 16px;font-size:13px;background:var(--success);color:#fff;border:none;cursor:pointer;font-family:inherit;font-weight:600;">Schedule</button>
+          <button class="secondary" onclick="closeModal('schedule-modal')" style="padding:9px 14px;font-size:13px;">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DISPOSE MODAL -->
+  <div id="dispose-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:var(--white);max-width:400px;width:100%;border-top:4px solid var(--accent);">
+      <div style="background:var(--accent);color:#fff;padding:13px 18px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:14px;font-weight:700;">Mark as Disposed</div>
+        <button onclick="closeModal('dispose-modal')" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:3px 8px;font-size:12px;cursor:pointer;">✕</button>
+      </div>
+      <div style="padding:16px;">
+        <div id="dispose-modal-msg"></div>
+        <div class="field-group">
+          <label>Disposition Method <span class="req">*</span></label>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+            ${['Donated to charity','Sold','Discarded / thrown out','Given away','Other'].map(o =>
+              `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;font-size:13px;margin-bottom:0;">
+                <input type="radio" name="dispose-method" value="${o}" style="width:auto;"> ${o}
+              </label>`).join('')}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button onclick="submitDispose()" class="danger" style="padding:9px 16px;font-size:13px;">Confirm</button>
+          <button class="secondary" onclick="closeModal('dispose-modal')" style="padding:9px 14px;font-size:13px;">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>14-T Home Citation System</footer>
+  <script>
+    let _impounds = [];
+    let _activeTab = 'active';
+    let _modalTarget = null;
+
+    const STATUS = {
+      held:                { label:'Held',              color:'var(--blue)',    bg:'var(--blue-light)' },
+      retrieval_requested: { label:'Retrieval Requested', color:'#a07000',     bg:'#fff8e6' },
+      scheduled:           { label:'Pickup Scheduled',  color:'var(--success)',bg:'#e8f5e8' },
+      released:            { label:'Released',          color:'var(--success)',bg:'#e8f5e8' },
+      disposed:            { label:'Disposed',          color:'var(--muted)',   bg:'#eee' },
+    };
+
+    function badge(status) {
+      const s = STATUS[status] || { label:status, color:'var(--muted)', bg:'var(--bg)' };
+      return `<span class="status-badge" style="background:${s.bg};color:${s.color};">${s.label}</span>`;
+    }
+
+    function switchTab(tab) {
+      _activeTab = tab;
+      document.querySelectorAll('.tab-btn').forEach((b,i) => {
+        b.classList.toggle('active', ['active','released','disposed','all'][i] === tab);
+      });
+      render();
+    }
+
+    function render() {
+      const filtered = _impounds.filter(imp => {
+        if (_activeTab === 'all') return true;
+        if (_activeTab === 'active') return !['released','disposed'].includes(imp.status);
+        return imp.status === _activeTab;
+      });
+
+      const list = document.getElementById('imp-list');
+      if (!filtered.length) {
+        list.innerHTML = '<div style="color:var(--muted);text-align:center;padding:24px;background:var(--white);border:1px solid var(--border);">Nothing here.</div>';
+        return;
+      }
+      list.innerHTML = filtered.map(buildCard).join('');
+    }
+
+    function buildCard(imp) {
+      const date = new Date(imp.created_at).toLocaleString();
+      const isActive = !['released','disposed'].includes(imp.status);
+
+      let actionBtns = '';
+      if (isActive) {
+        actionBtns += `<button onclick="openLocationModal('${imp.id}')" style="padding:6px 12px;font-size:12px;background:var(--blue);color:#fff;border:none;cursor:pointer;font-family:inherit;">${imp.storage_location ? 'Change Location' : 'Set Location'}</button>`;
+        if (imp.retrievable && (imp.status === 'retrieval_requested' || imp.status === 'held' || imp.status === 'retrieval_requested')) {
+          actionBtns += ` <button onclick="openScheduleModal('${imp.id}')" style="padding:6px 12px;font-size:12px;background:var(--success);color:#fff;border:none;cursor:pointer;font-family:inherit;">Schedule Pickup</button>`;
+        }
+        if (imp.status === 'scheduled' || imp.status === 'retrieval_requested' || imp.status === 'held') {
+          actionBtns += ` <button onclick="doAction('${imp.id}','release')" style="padding:6px 12px;font-size:12px;background:#2a7a2a;color:#fff;border:none;cursor:pointer;font-family:inherit;">Mark Released</button>`;
+        }
+        if (!imp.retrievable || imp.status !== 'released') {
+          actionBtns += ` <button onclick="openDisposeModal('${imp.id}')" style="padding:6px 12px;font-size:12px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-family:inherit;">Dispose</button>`;
+        }
+        actionBtns += ` <a href="impound-print.html?id=${imp.id}" style="padding:6px 12px;font-size:12px;background:#555;color:#fff;text-decoration:none;font-family:inherit;display:inline-block;">Print Label</a>`;
+      }
+      actionBtns += ` <button onclick="doAction('${imp.id}','delete')" style="padding:6px 10px;font-size:12px;background:transparent;border:1px solid #bbb;color:#777;cursor:pointer;font-family:inherit;">Delete</button>`;
+
+      return `<div class="imp-card" id="icard-${imp.id}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <div>
+            <div style="font-size:18px;font-weight:700;font-family:monospace;">${imp.impound_number || imp.id}</div>
+            <div style="font-size:14px;font-weight:600;margin-top:2px;">${imp.item_name}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px;">
+              Ticket: <a href="ticket.html?id=${imp.ticket_id}&bypass=1" style="color:var(--blue);">${imp.ticket_id}</a>
+              · ${date}
+            </div>
+          </div>
+          ${badge(imp.status)}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:10px;font-size:13px;">
+          ${imp.serial_number ? `<span><strong>S/N:</strong> ${imp.serial_number}</span>` : ''}
+          <span><strong>Retrievable:</strong> ${imp.retrievable ? 'Yes' : 'No'}</span>
+          ${!imp.retrievable && imp.disposal_method ? `<span><strong>Disposition:</strong> ${imp.disposal_method}</span>` : ''}
+          ${imp.storage_location ? `<span><strong>Location:</strong> ${imp.storage_location}</span>` : '<span style="color:var(--accent);font-weight:600;">⚠ No location set</span>'}
+        </div>
+        ${imp.retrieval_requested_at ? `<div style="font-size:12px;color:#a07000;margin-bottom:8px;">Retrieval requested: ${new Date(imp.retrieval_requested_at).toLocaleString()}</div>` : ''}
+        ${imp.pickup_start ? `<div style="font-size:12px;color:var(--success);margin-bottom:8px;">Pickup window: ${new Date(imp.pickup_start).toLocaleString()} – ${new Date(imp.pickup_end).toLocaleString()}</div>` : ''}
+        ${imp.photo_base64 ? `<img src="${imp.photo_base64}" style="width:100%;max-height:180px;object-fit:cover;border:1px solid var(--border);margin-bottom:10px;">` : ''}
+        ${imp.notes ? `<div style="font-size:13px;color:var(--muted);margin-bottom:8px;">${imp.notes}</div>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">${actionBtns}</div>
+      </div>`;
+    }
+
+    // ── Scan search ───────────────────────────────────────────────────────────
+    async function scanSearch() {
+      const val = document.getElementById('scan-input').value.trim();
+      if (!val) return;
+      const res = await fetch(`/api/impounds?barcode=${encodeURIComponent(val)}`);
+      const data = await res.json();
+      if (data.impound) {
+        // Scroll to or highlight
+        const el = document.getElementById(`icard-${data.impound.id}`);
+        if (el) { el.scrollIntoView({behavior:'smooth'}); el.style.outline='3px solid var(--blue)'; setTimeout(()=>el.style.outline='',2000); }
+        else { alert(`Found: ${data.impound.impound_number} — ${data.impound.item_name}\nStatus: ${data.impound.status}\nLocation: ${data.impound.storage_location||'Not set'}`); }
+      } else {
+        alert('No impound record found for that ID.');
+      }
+      document.getElementById('scan-input').value = '';
+    }
+
+    // Also handle ?scan= in URL (from QR code)
+    const scanParam = new URLSearchParams(window.location.search).get('scan');
+    if (scanParam) {
+      window.addEventListener('load', () => {
+        document.getElementById('scan-input').value = scanParam;
+        scanSearch();
+      });
+    }
+
+    // ── Modals ────────────────────────────────────────────────────────────────
+    function closeModal(id) { document.getElementById(id).style.display='none'; _modalTarget=null; }
+
+    function openLocationModal(id) {
+      _modalTarget = id;
+      const imp = _impounds.find(i => i.id === id);
+      document.getElementById('location-input').value = imp?.storage_location || '';
+      document.getElementById('location-modal-msg').innerHTML = '';
+      document.getElementById('location-modal').style.display = 'flex';
+    }
+    async function submitLocation() {
+      const loc = document.getElementById('location-input').value.trim();
+      const res = await fetch('/api/impounds', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'set_location', id:_modalTarget, location:loc }) });
+      const data = await res.json();
+      if (data.success) { closeModal('location-modal'); load(); }
+      else { const m=document.getElementById('location-modal-msg'); m.className='msg error'; m.textContent=data.error||'Failed.'; m.style.display='block'; }
+    }
+
+    function openScheduleModal(id) {
+      _modalTarget = id;
+      // Default to 1 hour from now
+      const d = new Date(Date.now() + 60*60*1000);
+      const local = new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+      document.getElementById('pickup-start').value = local;
+      document.getElementById('schedule-modal-msg').innerHTML = '';
+      document.getElementById('schedule-modal').style.display = 'flex';
+    }
+    async function submitSchedule() {
+      const start = document.getElementById('pickup-start').value;
+      const hours = parseFloat(document.getElementById('pickup-window').value);
+      if (!start) { const m=document.getElementById('schedule-modal-msg'); m.className='msg error'; m.textContent='Pick a start time.'; m.style.display='block'; return; }
+      const res = await fetch('/api/impounds', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'schedule_pickup', id:_modalTarget, pickup_start:start, window_hours:hours }) });
+      const data = await res.json();
+      if (data.success) { closeModal('schedule-modal'); load(); }
+      else { const m=document.getElementById('schedule-modal-msg'); m.className='msg error'; m.textContent=data.error||'Failed.'; m.style.display='block'; }
+    }
+
+    function openDisposeModal(id) {
+      _modalTarget = id;
+      document.getElementById('dispose-modal-msg').innerHTML = '';
+      document.getElementById('dispose-modal').style.display = 'flex';
+    }
+    async function submitDispose() {
+      const method = document.querySelector('input[name="dispose-method"]:checked')?.value;
+      if (!method) { const m=document.getElementById('dispose-modal-msg'); m.className='msg error'; m.textContent='Select a method.'; m.style.display='block'; return; }
+      const res = await fetch('/api/impounds', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'dispose', id:_modalTarget, disposal_method:method }) });
+      const data = await res.json();
+      if (data.success) { closeModal('dispose-modal'); load(); }
+      else { const m=document.getElementById('dispose-modal-msg'); m.className='msg error'; m.textContent=data.error||'Failed.'; m.style.display='block'; }
+    }
+
+    async function doAction(id, action) {
+      if (action === 'delete' && !confirm('Permanently delete this impound record?')) return;
+      const res = await fetch('/api/impounds', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action, id }) });
+      const data = await res.json();
+      if (data.success) load();
+      else alert(data.error || 'Failed.');
+    }
+
+    // Close modals on backdrop
+    ['location-modal','schedule-modal','dispose-modal'].forEach(id => {
+      document.getElementById(id).addEventListener('click', e => { if (e.target.id === id) closeModal(id); });
+    });
+
+    // ── Load ──────────────────────────────────────────────────────────────────
+    async function load() {
+      const res = await fetch('/api/impounds');
+      const data = await res.json();
+      _impounds = data.impounds || [];
+      render();
+    }
+
+    load();
+  </script>
+</body>
+</html>
