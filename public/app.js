@@ -683,7 +683,7 @@ async function submitClaim(id) {
   const result = await API.claimTicket(id, name);
   if (result.success) {
     const data = await API.getTicket(id);
-    renderFullTicket(document.getElementById('ticket-view'), data.ticket, false);
+    renderFullTicket(document.getElementById('ticket-view'), data.ticket, false); if (data.ticket?.issuer_removed_at) loadImpoundRetrievalUI(data.ticket.id);
   } else {
     showMsg(msgEl, result.error || 'Could not claim ticket.', 'error');
   }
@@ -707,7 +707,7 @@ async function submitVerify(id, isClaimed, hasLastInitial) {
   const initialMatch = !hasLastInitial || (enteredInitial === correctInitial);
 
   if (firstMatch && initialMatch) {
-    renderFullTicket(document.getElementById('ticket-view'), t, false);
+    renderFullTicket(document.getElementById('ticket-view'), t, false); if (t?.issuer_removed_at) loadImpoundRetrievalUI(t.id);
   } else {
     showMsg(msgEl, 'Name does not match. Check your first name' + (hasLastInitial ? ' and last initial.' : '.'), 'error');
   }
@@ -1101,7 +1101,8 @@ function renderFullTicket(container, t, isIssuerView) {
             <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;">
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:6px;">Impounded — ${new Date(t.issuer_removed_at).toLocaleString()}</div>
               ${t.issuer_removed_photo ? `<img src="${t.issuer_removed_photo}" style="width:100%;max-height:280px;object-fit:cover;border:1px solid var(--border);display:block;margin-bottom:8px;">` : ''}
-              ${t.issuer_removed_note ? `<div style="font-size:13px;color:var(--text);">${t.issuer_removed_note}</div>` : ''}
+              ${t.issuer_removed_note ? `<div style="font-size:13px;color:var(--text);margin-bottom:8px;">${t.issuer_removed_note}</div>` : ''}
+              ${!isIssuerView ? `<div id="impound-retrieval-${t.id}" style="margin-top:10px;"><div style="font-size:12px;color:var(--muted);">Loading retrieval info...</div></div>` : ''}
             </div>`;
 
         // ── SELF-REPORTED: pending issuer verification ──
@@ -1173,13 +1174,82 @@ function renderFullTicket(container, t, isIssuerView) {
   `;
 }
 
+async function loadImpoundRetrievalUI(ticketId) {
+  const el = document.getElementById(`impound-retrieval-${ticketId}`);
+  if (!el) return;
+  try {
+    const res = await fetch(`/api/impounds?ticket_id=${ticketId}`);
+    const data = await res.json();
+    const imp = data.impound;
+    if (!imp) { el.innerHTML = ''; return; }
+
+    if (!imp.retrievable) {
+      el.innerHTML = `<div style="background:#fde8e8;border:1px solid var(--accent);padding:10px;font-size:13px;color:var(--accent);font-weight:600;">This item will not be returned.</div>`;
+      return;
+    }
+
+    const now = new Date();
+    const pickupStart = imp.pickup_start ? new Date(imp.pickup_start) : null;
+    const pickupEnd = imp.pickup_end ? new Date(imp.pickup_end) : null;
+    const inWindow = pickupStart && pickupEnd && now >= pickupStart && now <= pickupEnd;
+    const windowFuture = pickupStart && now < pickupStart;
+    const windowPast = pickupEnd && now > pickupEnd;
+
+    if (imp.status === 'released') {
+      el.innerHTML = `<div style="background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;color:var(--success);font-weight:600;">This item has been released from impound.</div>`;
+      return;
+    }
+
+    if (imp.status === 'disposed') {
+      el.innerHTML = `<div style="background:#eee;border:1px solid var(--border);padding:10px;font-size:13px;color:var(--muted);">This item has been disposed of and is no longer available.</div>`;
+      return;
+    }
+
+    let html = `<div style="background:#fff8e6;border:1px solid #e6a000;padding:12px;font-size:13px;">`;
+    html += `<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#a07000;margin-bottom:6px;">Item in Impound</div>`;
+
+    if (imp.storage_location) {
+      html += `<div style="margin-bottom:6px;">Storage location recorded.</div>`;
+    }
+
+    if (inWindow) {
+      html += `<div style="color:var(--success);font-weight:600;margin-bottom:6px;">Your pickup window is now open — until ${pickupEnd.toLocaleString()}.</div>`;
+    } else if (windowFuture) {
+      html += `<div style="margin-bottom:6px;">Pickup scheduled: <strong>${pickupStart.toLocaleString()}</strong> – ${pickupEnd.toLocaleString()}</div>`;
+    } else if (windowPast) {
+      html += `<div style="color:var(--accent);margin-bottom:6px;">Your pickup window has passed. Please request a new time.</div>`;
+    } else if (imp.status === 'retrieval_requested') {
+      html += `<div style="margin-bottom:6px;">Your retrieval request has been received. Check back here for a scheduled pickup time.</div>`;
+    } else {
+      html += `<div style="margin-bottom:6px;">This item is retrievable. Request retrieval below and you'll be given a pickup time.</div>`;
+    }
+
+    if (imp.status === 'held' || imp.status === 'retrieval_requested' && windowPast) {
+      html += `<button onclick="requestRetrieval('${imp.id}','${ticketId}')" style="background:#7b3f00;color:#fff;padding:8px 16px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;margin-top:6px;">Request Retrieval</button>`;
+    }
+
+    html += `</div>`;
+    el.innerHTML = html;
+  } catch {
+    el.innerHTML = '';
+  }
+}
+
+async function requestRetrieval(impoundId, ticketId) {
+  const res = await fetch('/api/impounds', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'request_retrieval', id: impoundId }) });
+  const data = await res.json();
+  if (data.success) loadImpoundRetrievalUI(ticketId);
+  else alert(data.error || 'Failed to submit request.');
+}
+
 async function submitItemRemoved(id) {
   const btn = event.target;
   btn.disabled = true; btn.textContent = 'Submitting...';
   const result = await API.itemRemoved(id);
   if (result.success) {
     API.getTicket(id).then(data => {
-      if (data?.ticket) renderFullTicket(document.getElementById('ticket-view'), data.ticket, false);
+      if (data?.ticket) renderFullTicket(document.getElementById('ticket-view'), data.ticket, false); if (data.ticket?.issuer_removed_at) loadImpoundRetrievalUI(data.ticket.id);
     });
   } else {
     btn.disabled = false; btn.textContent = '✓ I Have Removed the Item';
@@ -1903,7 +1973,7 @@ async function submitAppeal(id) {
     if (submitBtn) submitBtn.disabled = true;
     setTimeout(() => {
       API.getTicket(id).then(data => {
-        if (data?.ticket) renderFullTicket(document.getElementById('ticket-view'), data.ticket, false);
+        if (data?.ticket) renderFullTicket(document.getElementById('ticket-view'), data.ticket, false); if (data.ticket?.issuer_removed_at) loadImpoundRetrievalUI(data.ticket.id);
       });
     }, 1000);
   } else {
