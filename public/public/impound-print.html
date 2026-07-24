@@ -1,0 +1,114 @@
+<!-- public/impound-print.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>14-T — Impound Label</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    @media print {
+      body { background:white; }
+      header, footer, .no-print { display:none !important; }
+      main { margin:0; padding:0; max-width:100%; }
+    }
+    .label-sheet { width:72mm; margin:0 auto; font-family:monospace; font-size:10px; line-height:1.4; }
+    .label-row { display:flex; justify-content:space-between; gap:6px; margin-bottom:3px; }
+    .label-key { font-weight:bold; white-space:nowrap; }
+    .barcode-wrap { text-align:center; margin-top:10px; padding-top:10px; border-top:1px dashed #000; }
+  </style>
+</head>
+<body>
+  <header class="no-print">
+    <div><div class="logo">14-T</div><div class="tagline">Home Citation System</div></div>
+    <nav>
+      <a href="impounds.html">Inventory</a>
+      <a href="dashboard.html">Dashboard</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="no-print" style="margin-bottom:16px;display:flex;gap:10px;">
+      <button onclick="window.print()">Print Label</button>
+      <button class="secondary" onclick="window.location.href='impounds.html'">View Inventory</button>
+    </div>
+    <div id="label-view">
+      <div class="msg" style="display:block;background:var(--blue-light);color:var(--blue-dark);padding:14px;">Generating label...</div>
+    </div>
+  </main>
+
+  <footer class="no-print">14-T Home Citation System</footer>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+
+    async function load() {
+      let imp = null;
+      const cached = sessionStorage.getItem('last_impound');
+      if (cached) {
+        const c = JSON.parse(cached);
+        if (c.id === id || c.impound_number === id) { imp = c; sessionStorage.removeItem('last_impound'); }
+      }
+      if (!imp) {
+        const res = await fetch(`/api/impounds?id=${id}`);
+        const data = await res.json();
+        imp = data.impound;
+      }
+      if (!imp) { document.getElementById('label-view').innerHTML = '<div class="msg error" style="display:block;">Impound record not found.</div>'; return; }
+
+      const date = new Date(imp.created_at).toLocaleString();
+      const qrUrl = `${window.location.origin}/impounds.html?scan=${imp.impound_number || imp.id}`;
+
+      document.getElementById('label-view').innerHTML = `
+        <div class="label-sheet">
+          <div style="text-align:center;font-size:14px;font-weight:bold;letter-spacing:2px;border-bottom:2px solid #000;padding-bottom:5px;margin-bottom:8px;">
+            14-T IMPOUND
+          </div>
+          <div style="text-align:center;font-size:18px;font-weight:bold;margin-bottom:8px;letter-spacing:1px;">
+            ${imp.impound_number || imp.id}
+          </div>
+          <div class="label-row"><span class="label-key">ITEM</span><span>${imp.item_name}</span></div>
+          <div class="label-row"><span class="label-key">TICKET</span><span>${imp.ticket_id}</span></div>
+          <div class="label-row"><span class="label-key">DATE</span><span>${date}</span></div>
+          ${imp.serial_number ? `<div class="label-row"><span class="label-key">S/N</span><span>${imp.serial_number}</span></div>` : ''}
+          <div class="label-row"><span class="label-key">STATUS</span><span>${imp.retrievable ? 'RETRIEVABLE' : 'NOT RETRIEVABLE'}</span></div>
+          ${!imp.retrievable && imp.disposal_method ? `<div class="label-row"><span class="label-key">DISPOSITION</span><span>${imp.disposal_method}</span></div>` : ''}
+          <div class="barcode-wrap">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrUrl)}" width="120" height="120" alt="QR">
+            <div style="margin-top:4px;font-size:9px;">${imp.impound_number || imp.id}</div>
+            <div id="barcode-img" style="margin-top:6px;"></div>
+            <div style="font-size:8px;margin-top:3px;color:#555;">Scan to view in inventory</div>
+          </div>
+        </div>`;
+
+      // Draw barcode from impound number
+      drawBarcode(imp.impound_number || imp.id);
+      setTimeout(() => window.print(), 1200);
+    }
+
+    function drawBarcode(text) {
+      const canvas = document.createElement('canvas');
+      const barW = 2, barH = 30, quiet = 8;
+      let bits = '';
+      for (let i = 0; i < text.length; i++) {
+        bits += text.charCodeAt(i).toString(2).padStart(8,'0');
+      }
+      bits = '00000000' + bits + '00000000';
+      canvas.width = bits.length * barW + quiet * 2;
+      canvas.height = barH + 10;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = '#000';
+      for (let i = 0; i < bits.length; i++) {
+        if (bits[i] === '1') ctx.fillRect(quiet + i * barW, 0, barW - 0.5, barH);
+      }
+      ctx.font = '8px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(text, canvas.width/2, barH + 9);
+      const el = document.getElementById('barcode-img');
+      if (el) el.appendChild(canvas);
+    }
+
+    load();
+  </script>
+</body>
+</html>
