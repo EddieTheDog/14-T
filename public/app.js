@@ -1616,12 +1616,11 @@ async function submitIssuerRemoved(id) {
   });
   const impoundResult = await impoundRes.json();
 
-  document.getElementById('issuer-remove-modal').remove();
-
   if (impoundResult.success) {
-    // Store for print page and redirect
+    document.getElementById('issuer-remove-modal')?.remove();
     sessionStorage.setItem('last_impound', JSON.stringify({
-      ...impoundResult,
+      id: impoundResult.impound_number,
+      impound_number: impoundResult.impound_number,
       ticket_id: id,
       item_name: itemName,
       serial_number: serial,
@@ -1630,9 +1629,9 @@ async function submitIssuerRemoved(id) {
       photo_base64: photoBase64,
       created_at: new Date().toISOString()
     }));
-    window.location.href = `impound-print.html?id=${impoundResult.id}`;
+    window.location.href = `impound-print.html?id=${impoundResult.impound_number}`;
   } else {
-    // Ticket was closed but impound record failed — go to ticket
+    document.getElementById('issuer-remove-modal')?.remove();
     alert('Ticket closed but impound record failed: ' + (impoundResult.error || 'Unknown error'));
     location.reload();
   }
