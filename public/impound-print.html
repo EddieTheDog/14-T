@@ -12,7 +12,7 @@
       header, footer, .no-print { display:none !important; }
       main { margin:0; padding:0; max-width:100%; }
     }
-    .label-sheet { width:72mm; margin:0 auto; font-family:monospace; font-size:10px; line-height:1.5; border:1px solid #ccc; padding:10px; }
+    .label-sheet { width:72mm; margin:0 auto; font-family:monospace; font-size:10px; line-height:1.5; padding:10px; }
     .label-row { display:flex; justify-content:space-between; gap:6px; margin-bottom:3px; }
     .label-key { font-weight:bold; white-space:nowrap; min-width:60px; }
   </style>
@@ -95,10 +95,8 @@
         return;
       }
 
-      const date = new Date(imp.created_at).toLocaleString();
+      const date = new Date(imp.created_at).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' });
       const impNum = imp.impound_number || imp.id;
-      const qrUrl = `${window.location.origin}/impounds.html?scan=${encodeURIComponent(impNum)}`;
-      const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(qrUrl)}`;
 
       document.getElementById('label-view').innerHTML = `
         <div class="label-sheet">
@@ -111,29 +109,14 @@
           <div class="label-row"><span class="label-key">STATUS</span><span>${imp.retrievable ? 'RETRIEVABLE' : 'NOT RETRIEVABLE'}</span></div>
           ${!imp.retrievable && imp.disposal_method ? `<div class="label-row"><span class="label-key">DISPOSITION</span><span>${imp.disposal_method}</span></div>` : ''}
           <div style="text-align:center;margin-top:10px;padding-top:8px;border-top:1px dashed #000;">
-            <img id="qr-img" src="${qrSrc}" width="110" height="110" alt="QR">
-            <div id="barcode-container" style="margin-top:6px;"></div>
-            <div style="font-size:8px;margin-top:3px;color:#555;">Scan to view in inventory</div>
+            <div id="barcode-container"></div>
           </div>
         </div>`;
 
       drawBarcode(impNum, 'barcode-container');
 
-      // Wait for QR image to load then print
-      const qrImg = document.getElementById('qr-img');
-      document.getElementById('status-msg').textContent = 'Waiting for QR code...';
-      qrImg.onload = () => {
-        document.getElementById('status-msg').textContent = 'Ready to print.';
-        setTimeout(() => window.print(), 400);
-      };
-      qrImg.onerror = () => {
-        document.getElementById('status-msg').textContent = 'QR load failed — print anyway or try again.';
-      };
-      // Fallback if already cached
-      if (qrImg.complete && qrImg.naturalWidth > 0) {
-        document.getElementById('status-msg').textContent = 'Ready.';
-        setTimeout(() => window.print(), 400);
-      }
+      document.getElementById('status-msg').textContent = 'Ready to print.';
+      setTimeout(() => window.print(), 300);
     }
 
     load();
