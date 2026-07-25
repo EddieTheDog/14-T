@@ -91,7 +91,7 @@ async function compressImage(file, maxWidth = 1000, quality = 0.7, meta = {}) {
 
         // ── Watermark ─────────────────────────────────────────────────────
         const now = new Date();
-        const stamp = now.toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        const stamp = now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles', month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
         const fontSize = Math.max(11, Math.round(w * 0.022));
         const smallFont = Math.max(9, Math.round(w * 0.018));
         const padding = 7;
@@ -726,7 +726,7 @@ function formatDeadline(deadline, issuedAt) {
   if (deadlineMap[deadline]) return deadlineMap[deadline];
   // Custom datetime string
   try {
-    return `by ${new Date(deadline).toLocaleString()}`;
+    return `by ${new Date(deadline).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}`;
   } catch { return deadline; }
 }
 
@@ -734,7 +734,7 @@ let _currentTicket = null;
 function renderFullTicket(container, t, isIssuerView) {
   _currentTicket = t; // store for edit/delete note functions on ticket page
   const displayName = t.claimed_name || t.person_name;
-  const dateStr = new Date(t.created_at).toLocaleString();
+  const dateStr = new Date(t.created_at).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' });
   const penalInfo = t.penal_code ? PENAL_CODES.find(p => p.code === t.penal_code) : null;
 
   // Extra photos
@@ -846,7 +846,7 @@ function renderFullTicket(container, t, isIssuerView) {
     <div style="background:var(--blue-light);border-left:4px solid var(--blue);padding:12px 14px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--blue-dark);">
-          Issuer Note${n.time ? ` — <span style="font-weight:400;color:var(--muted)">${new Date(n.time).toLocaleString()}</span>` : ''}
+          Issuer Note${n.time ? ` — <span style="font-weight:400;color:var(--muted)">${new Date(n.time).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</span>` : ''}
           ${n.type === 'points' ? `<span style="background:var(--accent);color:#fff;padding:1px 6px;font-size:10px;margin-left:6px;">+${n.points} PTS</span>` : ''}
           ${n.edited ? `<span style="color:var(--muted);font-weight:400;font-size:10px;margin-left:4px;">(edited)</span>` : ''}
         </div>
@@ -918,7 +918,7 @@ function renderFullTicket(container, t, isIssuerView) {
           <div style="width:3px;min-width:3px;background:${entry.color};align-self:stretch;border-radius:2px;"></div>
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;">${entry.msg}</div>
-            ${entry.timeStr ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(entry.timeStr).toLocaleString()}</div>` : ''}
+            ${entry.timeStr ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(entry.timeStr).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</div>` : ''}
           </div>
         </div>`).join('')}
     </div>`;
@@ -1008,7 +1008,7 @@ function renderFullTicket(container, t, isIssuerView) {
           </div>
           <div id="${remBannerId}" style="display:none;">
             <div style="padding:14px 16px;border-bottom:1px solid var(--success);">
-              <div style="font-size:13px;margin-bottom:10px;">Recipient reported the item was removed on <strong>${new Date(t.item_removed_at).toLocaleString()}</strong>.</div>
+              <div style="font-size:13px;margin-bottom:10px;">Recipient reported the item was removed on <strong>${new Date(t.item_removed_at).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</strong>.</div>
               <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Note <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
               <input type="text" id="ir-verify-note" placeholder="e.g. Area was clean, Left trash behind..." style="width:100%;padding:8px 10px;border:1px solid var(--border);font-size:13px;font-family:inherit;box-sizing:border-box;margin-bottom:0;">
             </div>
@@ -1086,7 +1086,7 @@ function renderFullTicket(container, t, isIssuerView) {
 
         // ── EXTENSION CALLOUT (shown when notify=true) ──────────────────────
         if (t.removal_extended_at && t.removal_extension_notify) {
-          const extDate = new Date(t.removal_extended_at).toLocaleString();
+          const extDate = new Date(t.removal_extended_at).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' });
           removalContent += `
             <div style="margin-top:10px;background:#fff0e0;border:1px solid #d97706;padding:10px 12px;">
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#b45309;margin-bottom:4px;">Deadline Extended — ${extDate}</div>
@@ -1099,7 +1099,7 @@ function renderFullTicket(container, t, isIssuerView) {
         if (impounded) {
           removalContent += `
             <div style="margin-top:12px;border-top:1px solid #e6a000;padding-top:12px;">
-              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:6px;">Impounded — ${new Date(t.issuer_removed_at).toLocaleString()}</div>
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:6px;">Impounded — ${new Date(t.issuer_removed_at).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</div>
               ${t.issuer_removed_photo ? `<img src="${t.issuer_removed_photo}" style="width:100%;max-height:280px;object-fit:cover;border:1px solid var(--border);display:block;margin-bottom:8px;">` : ''}
               ${t.issuer_removed_note ? `<div style="font-size:13px;color:var(--text);margin-bottom:8px;">${t.issuer_removed_note}</div>` : ''}
               ${!isIssuerView ? `<div id="impound-retrieval-${t.id}" style="margin-top:10px;"><div style="font-size:12px;color:var(--muted);">Loading retrieval info...</div></div>` : ''}
@@ -1110,7 +1110,7 @@ function renderFullTicket(container, t, isIssuerView) {
           if (isIssuerView) {
             removalContent += `
               <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:12px;">
-                <div style="font-size:13px;font-weight:700;color:var(--success);margin-bottom:10px;">Recipient says item was removed — ${new Date(t.item_removed_at).toLocaleString()}</div>
+                <div style="font-size:13px;font-weight:700;color:var(--success);margin-bottom:10px;">Recipient says item was removed — ${new Date(t.item_removed_at).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</div>
                 <div class="field-group">
                   <label for="ir-verify-note" style="font-size:12px;">Add a note <span style="font-weight:400;color:var(--muted)">(optional — e.g. "Left trash behind", "Item still present")</span></label>
                   <input type="text" id="ir-verify-note" placeholder="Optional note..." style="margin-bottom:10px;">
@@ -1123,7 +1123,7 @@ function renderFullTicket(container, t, isIssuerView) {
           } else {
             removalContent += `
               <div style="margin-top:10px;background:#e8f5e8;border:1px solid var(--success);padding:10px;font-size:13px;">
-                <strong style="color:var(--success);">Removal Reported</strong> — ${new Date(t.item_removed_at).toLocaleString()}. Pending verification.
+                <strong style="color:var(--success);">Removal Reported</strong> — ${new Date(t.item_removed_at).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Pending verification.
               </div>`;
           }
 
@@ -1213,9 +1213,27 @@ async function loadImpoundRetrievalUI(ticketId) {
     }
 
     if (inWindow) {
-      html += `<div style="color:var(--success);font-weight:600;margin-bottom:6px;">Your pickup window is now open — until ${pickupEnd.toLocaleString()}.</div>`;
+      const msLeft = pickupEnd - now;
+      const minsLeft = Math.ceil(msLeft / 60000);
+      html += `<div style="color:var(--success);font-weight:600;margin-bottom:6px;">
+        Your pickup window is open — <span id="pickup-countdown">${minsLeft} minute${minsLeft !== 1 ? 's' : ''} remaining</span> (until ${pickupEnd.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}).
+      </div>`;
+      // Start countdown
+      setTimeout(() => {
+        const interval = setInterval(() => {
+          const remaining = Math.ceil((pickupEnd - new Date()) / 60000);
+          const el = document.getElementById('pickup-countdown');
+          if (!el) { clearInterval(interval); return; }
+          if (remaining <= 0) { el.textContent = 'window has expired'; clearInterval(interval); loadImpoundRetrievalUI(ticketId); }
+          else el.textContent = `${remaining} minute${remaining !== 1 ? 's' : ''} remaining`;
+        }, 30000);
+      }, 0);
     } else if (windowFuture) {
-      html += `<div style="margin-bottom:6px;">Pickup scheduled: <strong>${pickupStart.toLocaleString()}</strong> – ${pickupEnd.toLocaleString()}</div>`;
+      const msUntil = pickupStart - now;
+      const minsUntil = Math.ceil(msUntil / 60000);
+      const hoursUntil = Math.floor(minsUntil / 60);
+      const timeUntilStr = hoursUntil > 0 ? `${hoursUntil}h ${minsUntil % 60}m` : `${minsUntil} min`;
+      html += `<div style="margin-bottom:6px;">Pickup window opens in <strong>${timeUntilStr}</strong> — ${pickupStart.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })} to ${pickupEnd.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</div>`;
     } else if (windowPast) {
       html += `<div style="color:var(--accent);margin-bottom:6px;">Your pickup window has passed. Please request a new time.</div>`;
     } else if (imp.status === 'retrieval_requested') {
@@ -2008,7 +2026,7 @@ function renderTicketRow(t) {
   const status = getTicketStatus(t);
   const vtInfo = VIOLATION_TYPES[t.violation_type];
   const vtLabel = vtInfo?.label || t.violation_type;
-  const dateStr = new Date(t.created_at).toLocaleDateString();
+  const dateStr = new Date(t.created_at).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' });
   const viewAsBtn = `<a href="ticket.html?id=${t.id}&bypass=1" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:underline;display:block;margin-top:4px;">View as Recipient</a>`;
 
   let actionBtn = '—';
@@ -2420,7 +2438,7 @@ function openAppealModal(id) {
   // If item was self-reported, show that at the top since it may need action first
   if (t.item_removed_at && t.status !== 'resolved') {
     thread += `<div style="background:#e8f5e8;border:1px solid var(--success);padding:12px;margin-bottom:10px;">
-      <div style="font-size:11px;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Recipient Says Item Was Removed — ${new Date(t.item_removed_at).toLocaleString()}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Recipient Says Item Was Removed — ${new Date(t.item_removed_at).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</div>
       <div style="font-size:13px;color:var(--muted);margin-bottom:8px;">Verify whether the item is actually gone before acting on the appeal.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button onclick="verifyItemRemoved('${t.id}', true); document.getElementById('appeal-modal').remove();" style="background:var(--success);color:#fff;padding:6px 12px;font-size:12px;border:none;cursor:pointer;font-family:inherit;font-weight:600;">Item is Gone</button>
@@ -2549,7 +2567,7 @@ if (document.getElementById('print-view')) {
     if (!t) return;
     const base = window.location.origin;
     const url = `${base}/ticket.html?id=${t.id}`;
-    const dateStr = new Date(t.created_at).toLocaleString();
+    const dateStr = new Date(t.created_at).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' });
 
     // Determine which variant to show
     let activeVariant = variant;
