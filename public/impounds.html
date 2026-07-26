@@ -261,21 +261,63 @@
 
     function openScheduleModal(id) {
       _modalTarget = id;
-      // Default to 1 hour from now in LA time
-      const nowLA = new Date(new Date().toLocaleString('en-US', {timeZone:'America/Los_Angeles'}));
-      nowLA.setHours(nowLA.getHours() + 1);
-      const pad = n => String(n).padStart(2,'0');
-      const local = `${nowLA.getFullYear()}-${pad(nowLA.getMonth()+1)}-${pad(nowLA.getDate())}T${pad(nowLA.getHours())}:${pad(nowLA.getMinutes())}`;
+      // Default to current LA time
+      const nowUtc = new Date();
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Los_Angeles',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false
+      }).formatToParts(nowUtc);
+      const p = {};
+      parts.forEach(x => { p[x.type] = x.value; });
+      const local = `${p.year}-${p.month}-${p.day}T${p.hour === '24' ? '00' : p.hour}:${p.minute}`;
       document.getElementById('pickup-start').value = local;
       document.getElementById('schedule-modal-msg').innerHTML = '';
       document.getElementById('schedule-modal').style.display = 'flex';
     }
     async function submitSchedule() {
-      const start = document.getElementById('pickup-start').value;
+      const startLocal = document.getElementById('pickup-start').value; // "YYYY-MM-DDTHH:MM" in LA local time
       const hours = parseFloat(document.getElementById('pickup-window').value);
-      if (!start) { const m=document.getElementById('schedule-modal-msg'); m.className='msg error'; m.textContent='Pick a start time.'; m.style.display='block'; return; }
+      if (!startLocal) { const m=document.getElementById('schedule-modal-msg'); m.className='msg error'; m.textContent='Pick a start time.'; m.style.display='block'; return; }
+
+      // Convert LA local time string to UTC ISO correctly
+      // Append a dummy second and treat as LA time using a known-good method
+      const laTimeStr = startLocal + ':00'; // "YYYY-MM-DDTHH:MM:SS"
+
+      // Get the UTC offset for LA at this specific moment by checking what offset applies
+      // Use the Intl API to find the offset
+      const tempDate = new Date(startLocal); // parsed as local browser time first
+      const laFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Los_Angeles',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      });
+      // Parse startLocal as if it's LA time by finding the UTC time that,
+      // when converted to LA, gives exactly startLocal
+      // Method: bisect — try a guess, see how far off we are, correct
+      const [datePart, timePart] = startLocal.split('T');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hour, minute] = timePart.split(':').map(Number);
+
+      // Initial guess: treat input as UTC
+      let guessUtc = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+      // Check what LA time that corresponds to
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Los_Angeles',
+        year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: 'numeric', minute: 'numeric', hour12: false
+      }).formatToParts(guessUtc);
+      const p = {};
+      parts.forEach(x => { p[x.type] = parseInt(x.value); });
+      // Difference between what we want and what we got
+      const diffMs = (p.year !== year || p.month !== month || p.day !== day || p.hour !== hour || p.minute !== minute)
+        ? guessUtc - new Date(Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, 0))
+        : 0;
+      const startUtc = new Date(guessUtc.getTime() + diffMs);
+      const startISO = startUtc.toISOString();
+
       const res = await fetch('/api/impounds', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ action:'schedule_pickup', id:_modalTarget, pickup_start:start, window_hours:hours }) });
+        body: JSON.stringify({ action:'schedule_pickup', id:_modalTarget, pickup_start: startISO, window_hours: hours }) });
       const data = await res.json();
       if (data.success) { closeModal('schedule-modal'); load(); }
       else { const m=document.getElementById('schedule-modal-msg'); m.className='msg error'; m.textContent=data.error||'Failed.'; m.style.display='block'; }
