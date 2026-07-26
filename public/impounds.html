@@ -107,10 +107,11 @@
         <div class="field-group">
           <label>Disposition Method <span class="req">*</span></label>
           <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
-            ${['Donated to charity','Sold','Discarded / thrown out','Given away','Other'].map(o =>
-              `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;font-size:13px;margin-bottom:0;">
-                <input type="radio" name="dispose-method" value="${o}" style="width:auto;"> ${o}
-              </label>`).join('')}
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;font-size:13px;margin-bottom:0;"><input type="radio" name="dispose-method" value="Donated to charity" style="width:auto;"> Donated to charity</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;font-size:13px;margin-bottom:0;"><input type="radio" name="dispose-method" value="Sold" style="width:auto;"> Sold</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;font-size:13px;margin-bottom:0;"><input type="radio" name="dispose-method" value="Discarded / thrown out" style="width:auto;"> Discarded / thrown out</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;font-size:13px;margin-bottom:0;"><input type="radio" name="dispose-method" value="Given away" style="width:auto;"> Given away</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;font-size:13px;margin-bottom:0;"><input type="radio" name="dispose-method" value="Other" style="width:auto;"> Other</label>
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:8px;">
