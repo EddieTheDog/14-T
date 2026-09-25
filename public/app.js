@@ -15,6 +15,16 @@ const VIOLATION_TYPES = {
   severe:  { label: 'Severe',  points: 3, desc: '3 pts' },
 };
 
+// ── ISSUER NOTE KINDS (colors/labels for the note "type" selector) ──────────
+const NOTE_KIND_STYLES = {
+  note:    { label: 'Note',    border: 'var(--blue)', bg: 'var(--blue-light)', text: 'var(--blue-dark)' },
+  notice:  { label: 'Notice',  border: '#0891b2',      bg: '#e0f7fa',           text: '#0e7490' },
+  warning: { label: 'Warning', border: '#e6a000',      bg: '#fff8e6',           text: '#a07000' },
+};
+function noteKindStyle(kind) {
+  return NOTE_KIND_STYLES[kind] || NOTE_KIND_STYLES.note;
+}
+
 const API = {
   async createTicket(data) {
     const res = await fetch('/api/tickets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
@@ -841,12 +851,15 @@ function renderFullTicket(container, t, isIssuerView) {
   let issuerNotes = [];
   if (t.issuer_notes) { try { issuerNotes = JSON.parse(t.issuer_notes); } catch {} }
 
-  // Issuer notes display (styled like removal notice block)
-  const notesHtml = issuerNotes.filter(n => !n.deleted).length ? issuerNotes.map((n, idx) => n.deleted ? '' : `
-    <div style="background:var(--blue-light);border-left:4px solid var(--blue);padding:12px 14px;margin-bottom:10px;">
+  // Issuer notes display — colored/labeled by kind (note / notice / warning)
+  const notesHtml = issuerNotes.filter(n => !n.deleted).length ? issuerNotes.map((n, idx) => {
+    if (n.deleted) return '';
+    const style = noteKindStyle(n.kind);
+    return `
+    <div style="background:${style.bg};border-left:4px solid ${style.border};padding:12px 14px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--blue-dark);">
-          Issuer Note${n.time ? ` — <span style="font-weight:400;color:var(--muted)">${new Date(n.time).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</span>` : ''}
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${style.text};">
+          ${style.label}${n.time ? ` — <span style="font-weight:400;color:var(--muted)">${new Date(n.time).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</span>` : ''}
           ${n.type === 'points' ? `<span style="background:var(--accent);color:#fff;padding:1px 6px;font-size:10px;margin-left:6px;">+${n.points} PTS</span>` : ''}
           ${n.edited ? `<span style="color:var(--muted);font-weight:400;font-size:10px;margin-left:4px;">(edited)</span>` : ''}
         </div>
@@ -856,7 +869,8 @@ function renderFullTicket(container, t, isIssuerView) {
         </div>` : ''}
       </div>
       <div style="font-size:13px;">${n.text}</div>
-    </div>`).join('') : '';
+    </div>`;
+  }).join('') : '';
 
   // Add note / attach removal UI (issuer bypass only)
   const issuerActionsHtml = isIssuerView && t.status !== 'resolved' ? `
@@ -1163,8 +1177,8 @@ function renderFullTicket(container, t, isIssuerView) {
         return `<div style="background:#fff3cd;border:2px solid #e6a000;padding:14px;margin-bottom:16px;">${removalContent}</div>`;
       })() : ''}
 
+      ${notesHtml ? `<div style="margin-top:16px;">${notesHtml}</div>` : ''}
       ${appealThread}
-      ${notesHtml}
       ${issuerActionsHtml}
       ${statusMsg}
       ${appealSection}
@@ -1678,6 +1692,14 @@ function openAddNoteModal(id) {
           <textarea id="note-text" placeholder="Add a comment, observation, or update..." style="min-height:80px;"></textarea>
         </div>
         <div class="field-group">
+          <label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block;">Type</label>
+          <select id="note-kind" style="padding:7px 10px;border:1px solid var(--border);font-size:13px;font-family:inherit;">
+            <option value="note">Note</option>
+            <option value="notice">Notice</option>
+            <option value="warning">Warning</option>
+          </select>
+        </div>
+        <div class="field-group">
           <label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block;">Also add points?</label>
           <div style="display:flex;align-items:center;gap:10px;">
             <input type="number" id="note-points" min="0" max="10" value="0" style="width:70px;padding:6px 8px;border:1px solid var(--border);font-size:14px;">
@@ -1697,6 +1719,7 @@ function openAddNoteModal(id) {
 async function submitAddNote(id) {
   const text = document.getElementById('note-text').value.trim();
   const pts = parseInt(document.getElementById('note-points').value) || 0;
+  const kind = document.getElementById('note-kind')?.value || 'note';
   const msgEl = document.getElementById('note-msg');
   if (!text) { msgEl.className = 'msg error'; msgEl.textContent = 'Note text is required.'; msgEl.style.display = 'block'; return; }
 
@@ -1706,7 +1729,7 @@ async function submitAddNote(id) {
   const res = await fetch('/api/issuer-note', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, text, points: pts })
+    body: JSON.stringify({ id, text, points: pts, kind })
   });
   const result = await res.json();
   if (result.success) { document.getElementById('add-note-modal').remove(); location.reload(); }
@@ -1810,6 +1833,14 @@ function openEditNoteModal(id, idx) {
           <label for="edit-note-text">Note Text <span class="req">*</span></label>
           <textarea id="edit-note-text" style="min-height:80px;">${note.text}</textarea>
         </div>
+        <div class="field-group">
+          <label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block;">Type</label>
+          <select id="edit-note-kind" style="padding:7px 10px;border:1px solid var(--border);font-size:13px;font-family:inherit;">
+            <option value="note" ${!note.kind || note.kind === 'note' ? 'selected' : ''}>Note</option>
+            <option value="notice" ${note.kind === 'notice' ? 'selected' : ''}>Notice</option>
+            <option value="warning" ${note.kind === 'warning' ? 'selected' : ''}>Warning</option>
+          </select>
+        </div>
         <div style="font-size:12px;color:var(--muted);background:var(--bg);padding:8px 10px;margin-bottom:12px;">Edit will be logged as a quality assurance adjustment.</div>
         <div style="display:flex;gap:10px;">
           <button onclick="submitEditNote('${id}',${idx})" style="padding:10px 18px;font-size:13px;">Save Edit</button>
@@ -1823,6 +1854,7 @@ function openEditNoteModal(id, idx) {
 
 async function submitEditNote(id, idx) {
   const text = document.getElementById('edit-note-text').value.trim();
+  const kind = document.getElementById('edit-note-kind')?.value || 'note';
   const msgEl = document.getElementById('edit-note-msg');
   if (!text) { msgEl.className = 'msg error'; msgEl.textContent = 'Note cannot be empty.'; msgEl.style.display = 'block'; return; }
   const btn = document.querySelector('#edit-note-modal button[onclick^="submitEditNote"]');
@@ -1831,7 +1863,7 @@ async function submitEditNote(id, idx) {
   const res = await fetch('/api/issuer-note', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, editIdx: idx, text, editMode: true })
+    body: JSON.stringify({ id, editIdx: idx, text, kind, editMode: true })
   });
   const result = await res.json();
   if (result.success) { document.getElementById('edit-note-modal').remove(); location.reload(); }
