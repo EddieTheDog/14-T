@@ -6,7 +6,7 @@ export async function onRequest(context) {
   if (request.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed.' }), { status: 405, headers });
   try {
     const body = await request.json();
-    const { id, text, points, editIdx, editMode, deleteMode } = body;
+    const { id, text, points, kind, editIdx, editMode, deleteMode } = body;
     if (!id) return new Response(JSON.stringify({ error: 'Missing id.' }), { status: 400, headers });
 
     const ticket = await env.DB.prepare(`SELECT * FROM tickets WHERE id = ?`).bind(id).first();
@@ -17,6 +17,10 @@ export async function onRequest(context) {
 
     const now = new Date().toISOString();
 
+    // Normalize note kind — only 'note', 'notice', 'warning' are valid; default to 'note'
+    const VALID_KINDS = ['note', 'notice', 'warning'];
+    const safeKind = VALID_KINDS.includes(kind) ? kind : 'note';
+
     if (deleteMode && editIdx !== undefined) {
       if (!notes[editIdx]) return new Response(JSON.stringify({ error: 'Note not found.' }), { status: 404, headers });
       notes[editIdx].deleted = true;
@@ -25,12 +29,13 @@ export async function onRequest(context) {
       if (!notes[editIdx]) return new Response(JSON.stringify({ error: 'Note not found.' }), { status: 404, headers });
       if (!text) return new Response(JSON.stringify({ error: 'Text required.' }), { status: 400, headers });
       notes[editIdx].text = text;
+      notes[editIdx].kind = safeKind;
       notes[editIdx].edited = true;
       notes[editIdx].editedAt = now;
     } else {
       if (!text) return new Response(JSON.stringify({ error: 'Text required.' }), { status: 400, headers });
       const addPts = parseInt(points) || 0;
-      notes.push({ text, points: addPts, type: addPts > 0 ? 'points' : 'comment', time: now });
+      notes.push({ text, points: addPts, type: addPts > 0 ? 'points' : 'comment', kind: safeKind, time: now });
       if (addPts > 0) {
         const newTotal = (ticket.points || 0) + addPts;
         await env.DB.prepare(`UPDATE tickets SET points = ? WHERE id = ?`).bind(newTotal, id).run();
