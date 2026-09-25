@@ -23,14 +23,14 @@ export async function onRequest(context) {
 
   if (request.method === 'POST') {
     try {
-      const { id, reporter_first, reporter_last_initial, location, item, description, owner, photo_base64, created_at } = await request.json();
+      const { id, reporter_first, reporter_last_initial, location, item, description, owner, photo_base64, on_behalf, created_at } = await request.json();
       if (!id || !reporter_first || !reporter_last_initial || !location || !item || !description) {
         return new Response(JSON.stringify({ error: 'Missing required fields.' }), { status: 400, headers });
       }
       await env.DB.prepare(`
-        INSERT INTO reports (id, reporter_first, reporter_last_initial, location, item, description, owner, photo_base64, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)
-      `).bind(id, reporter_first, reporter_last_initial, location, item, description, owner || null, photo_base64 || null, created_at).run();
+        INSERT INTO reports (id, reporter_first, reporter_last_initial, location, item, description, owner, photo_base64, on_behalf, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)
+      `).bind(id, reporter_first, reporter_last_initial, location, item, description, owner || null, photo_base64 || null, on_behalf ? 1 : 0, created_at).run();
       return new Response(JSON.stringify({ success: true, id }), { headers });
     } catch (err) {
       return new Response(JSON.stringify({ error: err.message }), { status: 500, headers });
